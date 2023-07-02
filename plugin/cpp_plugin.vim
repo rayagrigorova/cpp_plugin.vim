@@ -1,3 +1,16 @@
-command HelloWorldCommand echo "Hello, World!" 
+" Ако сме в compatible mode или plugin-ът е зареден, finish 
+if exists('g:loaded_cpp_plugin') || &cp
+	finish
+endif
+let g:loaded_cpp_plugin = '0.0.1' 
+let s:keepcpo = &cpo
+set cpo&vim
 
-nnoremap <Leader>hw :HelloWorldCommand<CR>
+" test commands
+" command HelloWorldCommand echo "Hello, World!" 
+" nnoremap <Leader>hw :HelloWorldCommand<CR>
+
+nnoremap <Leader>cad :call cpp_plugin#CreateFunctionDefinition()<CR>
+
+let &cpo = s:keepcpo 
+unlet s:keepcpo
