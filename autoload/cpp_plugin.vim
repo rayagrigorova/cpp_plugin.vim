@@ -1,11 +1,11 @@
 " a helper function to get the name of the class to put 
 " before the function name (ClassName::)
-function! s:cpp_plugin#GetClassName () abort
+
+function! s:GetClassName () abort
   " if the function is a part of a class, then 
   " the name of the class should be before the function declaration 
-
   let currentLine = line('.') " Get the current line number
-  let linesBefore = getline(1, currentLine - 1)
+  let linesBefore = join(getline(1, currentLine - 1), '\n')
   let pos = stridx('class', linesBefore) 
 
   if pos == -1
@@ -13,7 +13,9 @@ function! s:cpp_plugin#GetClassName () abort
   endif
 
   " Regex match
-  let regex = 'class.*\{.*' . currentLine . '.*\}.*'
+  " let regex = 'class.*\{.*' . currentLine . '.*\}.*'
+  " let regex = 'class.*' . currentLine . '.*'
+  let regex = '.*class.*{.*' . currentLine . '.*}.*'
 
   let classNamePos = match(linesBefore, regex) " get the index of the regex match
 
@@ -47,13 +49,14 @@ function! s:cpp_plugin#GetClassName () abort
 endfunction
 
 function! cpp_plugin#CreateFunctionDefinition() abort
+  echomsg "Hello"
   let currentLine = getline('.') " get the current line 
   let currentFile = expand('%:t') " get the last component of the filename only 
   let cppFileRegex = '.*\.cpp' " match .cpp files 
   
   let modifiedLine = substitute(currentLine, ';', ' {', '')  " add brackets and indentation
 
-  let toAdd = cpp_plugin#getClassName()  
+  let toAdd = s:GetClassName()  
   let modifiedLine = substitute(modifiedLine, '\(\w\+\)', '\0 ' . toAdd, '') " add ClassName::
   
   if currentFile =~ cppFileRegex
