@@ -1,6 +1,6 @@
 " a helper function to get the name of the class to put 
 " before the function name (ClassName::)
-function! s:cpp_plugin#getClassName () abort
+function! s:cpp_plugin#GetClassName () abort
   " if the function is a part of a class, then 
   " the name of the class should be before the function declaration 
 
