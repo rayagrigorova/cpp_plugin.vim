@@ -7,10 +7,12 @@ let s:keepcpo = &cpo
 set cpo&vim
 
 " test commands
-" command HelloWorldCommand echo "Hello, World!" 
-" nnoremap <Leader>hw :HelloWorldCommand<CR>
+command HelloWorldCommand echo "Hello, World!" 
+nnoremap <Leader>hw :HelloWorldCommand<CR>
 
 nnoremap <Leader>cad :call cpp_plugin#CreateFunctionDefinition()<CR>
+
+iabbrev for for (int i = 0; i < n; i++) {<CR>   <CR>}<C-O>k
 
 let &cpo = s:keepcpo 
 unlet s:keepcpo
