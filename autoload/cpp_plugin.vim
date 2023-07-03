@@ -8,26 +8,20 @@ function! cpp_plugin#GetClassName () abort
   let currentLine = line('.') " Get the current line number
   let linesBefore = join(getline(1, currentLine - 1), '\n') " get the lines before the current line
 
-  echomsg "Lines before:" . linesBefore
-
   " Regex match
   " let regex = 'class.*\{.*' . currentLine . '.*\}.*'
   " let regex = 'class.*' . currentLine . '.*'
   let regex = '.*class.*{.*' 
-  echomsg "Regex:" . regex
 
   let classNamePos = match(linesBefore, regex) " get the index of the regex match
-  echomsg "ClassNamepos" . classNamePos
 
   " If the function is inside a class declaration 
   if classNamePos != -1
     " get the lines between the line declaring the class and the current line
     let cutStr = strpart(linesBefore, classNamePos - 1, len(linesBefore) - classNamePos + 1)
 
-    echomsg "cut:" . cutStr 
-    
+
     let className = matchstr(cutStr, 'class\s\+\zs\(\w\+\)' ) " get the class name
-    echomsg "className:" . className 
 
     let res = className
 
@@ -55,22 +49,30 @@ function! cpp_plugin#CreateFunctionDefinition() abort
   let currentLine = substitute(getline('.'), '^\s*', '', '') " get the current line and remove tabs
   let currentFile = expand('%:t') " get the last component of the filename only 
   let cppFileRegex = '.*\.cpp' " match .cpp files 
-  
+
   let modifiedLine = substitute(currentLine, ';', ' {', '')  " change the ';' symbol to '{'
 
   let toAdd = cpp_plugin#GetClassName() 
 
-  echomsg "ToAdd:" . toAdd
+  " regex match a function that has a return type 
+  let modifyPattern = '^\s*\(\w\+\)\s\+\(\w\+\)\s*'
 
-  let modifiedLine = toAdd . substitute(modifiedLine, '\(\w\+\) ', '\0', '')  " add ClassName::
-  echomsg "Modified line:" . modifiedLine  
+  let matchPos = match(modifiedLine, modifyPattern) " Check if the function definition follows
+  " the pattern <word><spaces><word>
+
+  if matchPos != -1 " the function isn't a constructor or destructor 
+    let modifiedLine = substitute(modifiedLine, modifyPattern, '\1 ' . toAdd . '\2', '')  " add ClassName::
+
+  else 
+    let modifiedLine = toAdd . modifiedLine 
+  endif
 
   if currentFile =~ cppFileRegex
     " if the current file is a cpp file, create a function definition 
     " at the end of the file 
 
     let endLine = line('$') " get the line number of the last line in the file 
-  
+
     let lines = [ modifiedLine, '', '}']
     call writefile(lines, expand('%:t'), 'a')
 
