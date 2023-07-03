@@ -4,14 +4,11 @@
 function! cpp_plugin#GetClassName () abort
   " if the function is a part of a class, then 
   " the name of the class should be before the function declaration 
-  let currentLine = line('.') " Get the current line number
-  let linesBefore = join(getline(1, currentLine - 1), '\n')
-  echomsg "Lines before:" . linesBefore
-  let pos = stridx(linesBefore, 'class') 
 
-  if pos == -1
-    return '' " not a part of a class 
-  endif
+  let currentLine = line('.') " Get the current line number
+  let linesBefore = join(getline(1, currentLine - 1), '\n') " get the lines before the current line
+
+  echomsg "Lines before:" . linesBefore
 
   " Regex match
   " let regex = 'class.*\{.*' . currentLine . '.*\}.*'
@@ -24,18 +21,17 @@ function! cpp_plugin#GetClassName () abort
 
   " If the function is inside a class declaration 
   if classNamePos != -1
-
+    " get the lines between the line declaring the class and the current line
     let cutStr = strpart(linesBefore, classNamePos - 1, len(linesBefore) - classNamePos + 1)
 
     echomsg "cut:" . cutStr 
     
-    " let className = substitute(cutStr, pattern, '\1', '') " get the word after the class name 
-    let className = matchstr(cutStr, 'class\s\+\zs\(\w\+\)' )
+    let className = matchstr(cutStr, 'class\s\+\zs\(\w\+\)' ) " get the class name
     echomsg "className:" . className 
 
     let res = className
 
-    let typenamePos = match(cutStr, '.*template.*')
+    let typenamePos = match(cutStr, '.*template.*') " check if the class is a template class
 
     if typenamePos != -1
       " if the class is a template class
@@ -56,26 +52,26 @@ function! cpp_plugin#GetClassName () abort
 endfunction
 
 function! cpp_plugin#CreateFunctionDefinition() abort
-  " substitute is used to remove tabs
-  let currentLine = substitute(getline('.'), '^\s*', '', '') " get the current line 
+  let currentLine = substitute(getline('.'), '^\s*', '', '') " get the current line and remove tabs
   let currentFile = expand('%:t') " get the last component of the filename only 
   let cppFileRegex = '.*\.cpp' " match .cpp files 
   
-  let modifiedLine = substitute(currentLine, ';', ' {', '')  " add brackets and indentation
+  let modifiedLine = substitute(currentLine, ';', ' {', '')  " change the ';' symbol to '{'
 
   let toAdd = cpp_plugin#GetClassName() 
 
   echomsg "ToAdd:" . toAdd
 
-  let modifiedLine = substitute(modifiedLine, '\(\w\+\) ', '\0' . toAdd, '') " add ClassName::
-  
+  let modifiedLine = toAdd . substitute(modifiedLine, '\(\w\+\) ', '\0', '')  " add ClassName::
+  echomsg "Modified line:" . modifiedLine  
+
   if currentFile =~ cppFileRegex
     " if the current file is a cpp file, create a function definition 
     " at the end of the file 
 
     let endLine = line('$') " get the line number of the last line in the file 
   
-    let lines = ['', modifiedLine, '', '}']
+    let lines = [ modifiedLine, '', '}']
     call writefile(lines, expand('%:t'), 'a')
 
   else
@@ -84,7 +80,7 @@ function! cpp_plugin#CreateFunctionDefinition() abort
     let parentDir = expand('%:h:h') 
     let fileToEdit = findfile(cppFile, parentDir)
 
-    if fileToEdit == '' 
+    if fileToEdit == '' " the file doesn't exist
       return 
     endif 
 
@@ -94,6 +90,7 @@ function! cpp_plugin#CreateFunctionDefinition() abort
     execute 'vsplit ' . fileToEdit 
 
   endif
+
   silent! edit! " Disable warning and refresh file 
 
 endfunction
