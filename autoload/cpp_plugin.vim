@@ -1,12 +1,13 @@
 " a helper function to get the name of the class to put 
 " before the function name (ClassName::)
 
-function! s:GetClassName () abort
+function! cpp_plugin#GetClassName () abort
   " if the function is a part of a class, then 
   " the name of the class should be before the function declaration 
   let currentLine = line('.') " Get the current line number
   let linesBefore = join(getline(1, currentLine - 1), '\n')
-  let pos = stridx('class', linesBefore) 
+  echomsg "Lines before:" . linesBefore
+  let pos = stridx(linesBefore, 'class') 
 
   if pos == -1
     return '' " not a part of a class 
@@ -15,16 +16,22 @@ function! s:GetClassName () abort
   " Regex match
   " let regex = 'class.*\{.*' . currentLine . '.*\}.*'
   " let regex = 'class.*' . currentLine . '.*'
-  let regex = '.*class.*{.*' . currentLine . '.*}.*'
+  let regex = '.*class.*{.*' 
+  echomsg "Regex:" . regex
 
   let classNamePos = match(linesBefore, regex) " get the index of the regex match
+  echomsg "ClassNamepos" . classNamePos
 
   " If the function is inside a class declaration 
   if classNamePos != -1
-    let pattern = 'class \(\w\+\)' " Use a regex to extract the class name 
+
     let cutStr = strpart(linesBefore, classNamePos - 1, len(linesBefore) - classNamePos + 1)
 
-    let className = substitute(cutStr, pattern, '\1', '') " get the word after the class name 
+    echomsg "cut:" . cutStr 
+    
+    " let className = substitute(cutStr, pattern, '\1', '') " get the word after the class name 
+    let className = matchstr(cutStr, 'class\s\+\zs\(\w\+\)' )
+    echomsg "className:" . className 
 
     let res = className
 
@@ -49,15 +56,18 @@ function! s:GetClassName () abort
 endfunction
 
 function! cpp_plugin#CreateFunctionDefinition() abort
-  echomsg "Hello"
-  let currentLine = getline('.') " get the current line 
+  " substitute is used to remove tabs
+  let currentLine = substitute(getline('.'), '^\s*', '', '') " get the current line 
   let currentFile = expand('%:t') " get the last component of the filename only 
   let cppFileRegex = '.*\.cpp' " match .cpp files 
   
   let modifiedLine = substitute(currentLine, ';', ' {', '')  " add brackets and indentation
 
-  let toAdd = s:GetClassName()  
-  let modifiedLine = substitute(modifiedLine, '\(\w\+\)', '\0 ' . toAdd, '') " add ClassName::
+  let toAdd = cpp_plugin#GetClassName() 
+
+  echomsg "ToAdd:" . toAdd
+
+  let modifiedLine = substitute(modifiedLine, '\(\w\+\) ', '\0' . toAdd, '') " add ClassName::
   
   if currentFile =~ cppFileRegex
     " if the current file is a cpp file, create a function definition 
@@ -84,7 +94,6 @@ function! cpp_plugin#CreateFunctionDefinition() abort
     execute 'vsplit ' . fileToEdit 
 
   endif
-
   silent! edit! " Disable warning and refresh file 
 
 endfunction
