@@ -5,31 +5,27 @@ function! cpp_plugin#GetClassName () abort
   " if the function is a part of a class, then 
   " the name of the class should be before the function declaration 
 
-  let currentLine = line('.') " Get the current line number
-  let linesBefore = join(getline(1, currentLine - 1), '\n') " get the lines before the current line
+  let currentLine = getline('.') " Get the current line 
+  
+  let regex = '\s*class\s\+\(\w\+\)\s*{\_.\+' . currentLine . '\_.\+}' " a regex to match a surrounding class
+  
+  " echomsg "Regex:" . regex
+  let lines = getline(1, '$') " get all file lines
 
-  " Regex match
-  " let regex = 'class.*\{.*' . currentLine . '.*\}.*'
-  " let regex = 'class.*' . currentLine . '.*'
-  let regex = '.*class.*{.*' 
+  let capturedPart = matchstr(join(lines, "\n"), regex)
+  echomsg "Captured part:" . capturedPart
 
-  let classNamePos = match(linesBefore, regex) " get the index of the regex match
-
-  " If the function is inside a class declaration 
-  if classNamePos != -1
-    " get the lines between the line declaring the class and the current line
-    let cutStr = strpart(linesBefore, classNamePos - 1, len(linesBefore) - classNamePos + 1)
-
-
-    let className = matchstr(cutStr, 'class\s\+\zs\(\w\+\)' ) " get the class name
+  if capturedPart != ""
+    let className = substitute(capturedPart, regex, '\1', '' ) " get the class name
+    echomsg "Class name" . className
 
     let res = className
 
-    let typenamePos = match(cutStr, '.*template.*') " check if the class is a template class
+    let typenamePos = match(capturedPart, '.*template.*') " check if the class is a template class
 
     if typenamePos != -1
       " if the class is a template class
-      let typeName = substitute(cutStr, 'typename', '', '') " remove all occurances of 'typename'
+      let typeName = substitute(capturedPart, 'typename', '', '') " remove all occurances of 'typename'
       let angleBracketsRegex = '\(\<.*\>\)'
       let capturedPart = substitute(typeName, angleBracketsRegex, '\1', '')
 
