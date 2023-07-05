@@ -23,7 +23,8 @@ let g:cppsnippets = {
 command! Big6 :call cpp_plugin#DeclareBig6()<CR>
 
 nnoremap <Leader>es :call cpp_plugin#ExpandSnippet()<CR>
-inoremap <buffer> { <C-O>:call cpp_plugin#AddBraceAndIndentation()<CR>
+inoremap <buffer> { {<C-O>:call cpp_plugin#AddBraceAndIndentation()<CR>
+nnoremap <Leader>cbp :call cpp_plugin#ChangeBracketPos()<CR>
 
 let &cpo = s:keepcpo 
 unlet s:keepcpo

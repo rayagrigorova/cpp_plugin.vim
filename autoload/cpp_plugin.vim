@@ -218,6 +218,7 @@ endfunction
 function! cpp_plugin#AddBraceAndIndentation() abort
   let savedCursor = getpos('.') " save the cursor position since it will be moved 
   let currentLineNumber = line('.') " get the number of the current line 
+
   let indentationLevel = indent(currentLineNumber) " get the indentation level of the current line (in spaces)
   let userShiftWidth = &shiftwidth 
 
@@ -237,4 +238,45 @@ function! cpp_plugin#AddBraceAndIndentation() abort
   " move right
   silent! execute 'normal! ' . (indentationLevel + userShiftWidth + 1) . 'l' 
 
+endfunction
+
+
+" void foo () { // Option 1
+"
+" }
+"
+" void bar ()
+" { // Option 2
+"
+" }
+function! cpp_plugin#ChangeBracketPos() abort
+  " find the closest opening bracket and regex match the row 
+  " if it contains '()', then the position is currently option 1
+  " otherwise it is option 2
+
+  let savedCursor = getpos('.') " save the cursor position since it will be moved 
+  let currentLine = getline('.')
+
+  let lineContainsBracket = currentLine =~ '.*{.*' 
+
+  if !lineContainsBracket
+    " Position the cursor on the row containing the respective opening bracket
+    normal! ?{<CR>
+    let regexOption1 = '.*().*'
+  endif
+
+" If the initial line contains an opening brace or the destination line contains an opening brace 
+  if lineContainsBracket || regexOption1 =~ getline('.') 
+    " delete the { symbol
+    if lineContainsBracket
+      normal! f{
+    endif
+
+    normal! x
+    call append(line('.'), "{")
+  else 
+    normal! j0f{xkA {
+  endif
+
+  call setpos('.', savedCursor) " set the cursor position back
 endfunction
