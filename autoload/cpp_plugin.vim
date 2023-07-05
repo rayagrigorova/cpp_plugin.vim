@@ -219,6 +219,7 @@ function! cpp_plugin#AddBraceAndIndentation() abort
   let savedCursor = getpos('.') " save the cursor position since it will be moved 
   let currentLineNumber = line('.') " get the number of the current line 
   let indentationLevel = indent(currentLineNumber) " get the indentation level of the current line (in spaces)
+  let userShiftWidth = &shiftwidth 
 
   call append(line('.'), '}') " this line should appear last
   call append(line('.'), '') 
@@ -231,9 +232,9 @@ function! cpp_plugin#AddBraceAndIndentation() abort
   " move to the line below 
   silent! execute 'normal! j' 
 
-  call setline('.', repeat(' ', indentationLevel + 4)) " add necessary number of spaces
+  call setline('.', repeat(' ', indentationLevel + userShiftWidth + 1)) " add necessary number of spaces
 
   " move right
-  silent! execute 'normal! ' . (indentationLevel + 4) . 'l' 
+  silent! execute 'normal! ' . (indentationLevel + userShiftWidth + 1) . 'l' 
 
 endfunction
