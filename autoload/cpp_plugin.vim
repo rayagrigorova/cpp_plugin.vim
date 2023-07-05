@@ -2,12 +2,10 @@
 " declaration
 function! cpp_plugin#GetTypename () abort
   let currentLine = getline('.') " get the current line
-  let regex = '\(template.\{-}\n\)\_.\+' . currentLine . '\_.\+}' " put the template <...> part in a capture group
+  let regex = '\(template.\{-}\n\)\_.*' . currentLine . '\_.*}' " put the template <...> part in a capture group
 
   let lines = getline(1, '$') " get all file lines
   let match = matchstr(join(lines, "\n"), regex)
-
-  echomsg "Match" . match
 
   let templateTypename = substitute(match, regex, '\1', '')
   return templateTypename 
@@ -49,6 +47,8 @@ function! cpp_plugin#GetClassName () abort
 endfunction
 
 function! cpp_plugin#CreateFunctionDefinition() abort
+  let savedView = winsaveview()
+
   let currentLine = substitute(getline('.'), '^\s*', '', '') " get the current line and remove tabs
   let currentFile = expand('%:t') " get the last component of the filename only 
 
@@ -117,6 +117,65 @@ function! cpp_plugin#CreateFunctionDefinition() abort
   endif
 
   silent! edit! " Disable warning and refresh file 
-  execute 'edit!'
+
+  call winrestview(savedView)
+
+endfunction
+
+" This function is intended to work when the cursor is positioned on the line
+" declaring the class
+function! cpp_plugin#DeclareBig6() abort
+  let savedCursor = getpos('.') " save the cursor position since it will be moved 
+  " a list of all functions to be added
+  " the symbol ? is used as a placeholder and will be replaced with the class
+  " name since '?'can't be a part of a class name
+
+  let functionList = [
+        \"void free();", " a private helper function
+        \ "void copyFrom(const ?& other);", " a private helper function
+        \ "void moveFrom(?&& other);", " a private helper function
+        \ "?();", " Default constructor 
+        \ "?(const ?& other);", " Copy constructor 
+        \ "?& operator=(const ?& other);", " Operator =
+        \ "~?();", " Destructor 
+        \ "?(?&& other) noexcept;", " Move cc
+        \ "?& operator=(?&& other) noexcept;" " Move op=
+  ]
+
+  let currentLine = getline('.') " get the current line
+  let startLineNumber = line('.') " save the number of the first line so that the code can be formatted later 
+
+  let classNameRegex = ".*class\s\+\(\w\+\).*" " capture the class name 
+  let className = substitute(currentLine, classNameRegex, '\1', '') " get the class name from the current line
+
+  let modifiedFunctionList = map(functionList, {_, v -> substitute(v, '?', className, 'g')}) 
+  " The '_' variable is unused and is only added for consistency - map() expects a lambda function with 2 arguments 
+"		If {expr2} is a |Funcref| it is called with two arguments:
+"			1. The key or the index of the current item.
+"			2. the value of the current item.
+
+  " search for the next opening brace and then go one line down 
+  normal! /{<CR>j
+  let lineNumber = line('.') " get the line number 
+
+  for i in range (0, 2) " add the first 3 functions 
+    call append(lineNumber, modifiedFunctionList[i])
+    let lineNumber += 1
+  endfor
+
+  call append (lineNumber, "public:")
+  let lineNumber += 1
+
+  for i in range (3, len(modifiedFunctionList) - 1) " add the next functions 
+    call append(lineNumber, modifiedFunctionList[i])
+    let lineNumber += 1
+  endfor
+
+  call append(lineNumber, "}")
+  let lineNumber += 1
+
+  " format the code
+  exe startLineNumber . ',' . lineNumber . 'normal! ='
+  call setpos('.', savedCursor) " set the cursor position back
 
 endfunction
