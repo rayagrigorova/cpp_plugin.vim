@@ -6,14 +6,9 @@ let g:loaded_cpp_plugin = '0.0.1'
 let s:keepcpo = &cpo
 set cpo&vim
 
-" test commands
-" command HelloWorldCommand echo "Hello, World!" 
-" nnoremap <Leader>hw :HelloWorldCommand<CR>
-
 nnoremap <Leader>cad :call cpp_plugin#CreateFunctionDefinition()<CR>
 
-" iabbrev for for (int i = 0; i < n; i++) {<CR>          <CR>}<C-O>k
-
+" pairs of trigger words and code snippets
 let g:cppsnippets = {
   \ 'forl': "for (int i = 0; i < n; i++) {\n\n}",
   \ 'myStrlen': "size_t myStrlen(const char* str)\n{\nif (str == nullptr)\nreturn 0;\n\nsize_t count = 0;\nwhile (*str != '\\0')\n{\ncount++;\nstr++;\n}\nreturn count;\n}",
@@ -26,6 +21,7 @@ let g:cppsnippets = {
   \ }
 
 command! Big6 :call cpp_plugin#DeclareBig6()<CR>
+nnoremap <Leader>es :call cpp_plugin#ExpandSnippet() 
 
 let &cpo = s:keepcpo 
 unlet s:keepcpo

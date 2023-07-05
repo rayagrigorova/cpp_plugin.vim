@@ -198,3 +198,22 @@ function! cpp_plugin#DeclareBig6() abort
   call setpos('.', savedCursor) " set the cursor position back
 
 endfunction
+
+" a function that expands the word under the cursor to the respective code
+" snippet
+function! cpp_plugin#ExpandSnippet() abort 
+    let snippet = get(g:cppsnippets, expand('<cword>'), 'Not found') " the default value returned is 'Not found'
+
+    " delete the word used to trigger the snippet expansion
+    normal! diW
+
+    if snippet == 'Not found'
+        echomsg "Snippet not found."
+        return 
+    else
+        execute 'normal! i' . snippet  
+    endif
+endfunction
+
+
+
