@@ -16,7 +16,6 @@ endfunction
 " before the function name (ClassName::)
 function! cpp_plugin#GetClassName () abort
   let currentLine = getline('.') " Get the current line 
-
   let lineNumber = line('.') " get the number of the  current line 
 
   " search for the word 'class' in normal mode 
@@ -195,6 +194,7 @@ function! cpp_plugin#DeclareBig6() abort
 
   " format the code
   execute startLineNumber . ',' . lineNumber . 'normal! gg=G'
+
   call setpos('.', savedCursor) " set the cursor position back
 
 endfunction
@@ -215,5 +215,25 @@ function! cpp_plugin#ExpandSnippet() abort
     endif
 endfunction
 
+function! cpp_plugin#AddBraceAndIndentation() abort
+  let savedCursor = getpos('.') " save the cursor position since it will be moved 
+  let currentLineNumber = line('.') " get the number of the current line 
+  let indentationLevel = indent(currentLineNumber) " get the indentation level of the current line (in spaces)
 
+  call append(line('.'), '}') " this line should appear last
+  call append(line('.'), '') 
 
+  " format the code
+  silent! execute 'normal! gg=G'
+
+  call setpos('.', savedCursor) " set the cursor position back
+
+  " move to the line below 
+  silent! execute 'normal! j' 
+
+  call setline('.', repeat(' ', indentationLevel + 4)) " add necessary number of spaces
+
+  " move right
+  silent! execute 'normal! ' . (indentationLevel + 4) . 'l' 
+
+endfunction
