@@ -17,10 +17,22 @@ endfunction
 function! cpp_plugin#GetClassName () abort
   let currentLine = getline('.') " Get the current line 
 
+  let lineNumber = line('.') " get the number of the  current line 
+
+  " search for the word 'class' in normal mode 
+  normal! ?class<CR>
+  let word = expand('<cword>') " get the word under the cursor
+
+  if word != "class" " no class declarations before the current line 
+    return ''
+
+  let lines = join(getlines(lineNumber, line('.')), '\n') " get the lines between the
+  " line where the cursor initially was and the first ocurrance of the word
+  " 'class' before the line 
+
   " a regex to match the surrounding class for the current line 
-  let regex = '\s*class\s\+\(\w\+\)\s*{\_.\+' . currentLine . '\_.\+}' 
-  let lines = getline(1, '$') " get all file lines
-  let capturedPart = matchstr(join(lines, "\n"), regex)
+  let regex = '.*class\s\+\(\w\+\)\s*{\_.\+' . currentLine 
+  let capturedPart = matchstr(lines, regex)
 
   if capturedPart != "" " if the current line is a part of a class declaration
     let className = substitute(capturedPart, regex, '\1', '' ) " get the class name
@@ -43,6 +55,8 @@ function! cpp_plugin#GetClassName () abort
     return ''
 
   endif 
+
+  call setpos('.', savedCursor) " set the cursor position back
 
 endfunction
 
@@ -118,37 +132,38 @@ function! cpp_plugin#CreateFunctionDefinition() abort
 
   silent! edit! " Disable warning and refresh file 
 
-  call winrestview(savedView)
+  " call winrestview(savedView)
 
 endfunction
+
 
 " This function is intended to work when the cursor is positioned on the line
 " declaring the class
 function! cpp_plugin#DeclareBig6() abort
   let savedCursor = getpos('.') " save the cursor position since it will be moved 
+
   " a list of all functions to be added
-  " the symbol ? is used as a placeholder and will be replaced with the class
-  " name since '?'can't be a part of a class name
+  " T is used as a placeholder and will be replaced with the class name 
 
   let functionList = [
-        \"void free();", " a private helper function
-        \ "void copyFrom(const ?& other);", " a private helper function
-        \ "void moveFrom(?&& other);", " a private helper function
-        \ "?();", " Default constructor 
-        \ "?(const ?& other);", " Copy constructor 
-        \ "?& operator=(const ?& other);", " Operator =
-        \ "~?();", " Destructor 
-        \ "?(?&& other) noexcept;", " Move cc
-        \ "?& operator=(?&& other) noexcept;" " Move op=
-  ]
+        \ "void free();", 
+        \ "void copyFrom(const T& other);", 
+        \ "void moveFrom(T&& other);", 
+        \ "T();", 
+        \ "T(const T& other);", 
+        \ "T& operator=(const T& other);", 
+        \ "~T();", 
+        \ "T(T&& other) noexcept;", 
+        \ "T& operator=(T&& other) noexcept;" 
+        \ ]
 
   let currentLine = getline('.') " get the current line
   let startLineNumber = line('.') " save the number of the first line so that the code can be formatted later 
 
-  let classNameRegex = ".*class\s\+\(\w\+\).*" " capture the class name 
+  let classNameRegex = 'class\s\+\(\w\+\).*' " capture the class name 
   let className = substitute(currentLine, classNameRegex, '\1', '') " get the class name from the current line
 
-  let modifiedFunctionList = map(functionList, {_, v -> substitute(v, '?', className, 'g')}) 
+  let modifiedFunctionList = map(copy(functionList), {_, v -> substitute(v, 'T', className, 'g')}) 
   " The '_' variable is unused and is only added for consistency - map() expects a lambda function with 2 arguments 
 "		If {expr2} is a |Funcref| it is called with two arguments:
 "			1. The key or the index of the current item.
@@ -163,7 +178,9 @@ function! cpp_plugin#DeclareBig6() abort
     let lineNumber += 1
   endfor
 
-  call append (lineNumber, "public:")
+  call append (lineNumber, "") " add an empty line 
+  let lineNumber += 1
+  call append (lineNumber, "public:") " add 'public' modifier before the next functions
   let lineNumber += 1
 
   for i in range (3, len(modifiedFunctionList) - 1) " add the next functions 
@@ -174,8 +191,10 @@ function! cpp_plugin#DeclareBig6() abort
   call append(lineNumber, "}")
   let lineNumber += 1
 
+  echomsg "Start line" . startLineNumber . " end line " . lineNumber
+
   " format the code
-  exe startLineNumber . ',' . lineNumber . 'normal! ='
+  execute startLineNumber . ',' . lineNumber . 'normal! gg=G'
   call setpos('.', savedCursor) " set the cursor position back
 
 endfunction
