@@ -126,12 +126,11 @@ function! cpp_plugin#CreateFunctionDefinition() abort
   echomsg "Modified line:" . modifiedLine 
   " regex match a function that has a return type - it should start with >= 0
   " spaces and contain 2 words seperated by spaces
-  let funcWithReturnTypePattern = '^\s*const?\s*[*&\w]+\s\+[\w+*/%&|=<>!^~?()\-]+\s*([\w &*,]*)\s*{\s*'
+  let funcNoReturnType = '\s*\~?\w\+(.*).*'
 
-  let matchFuncWithReturnType = match(modifiedLine, funcWithReturnTypePattern) " Check if the function definition follows
-  " the pattern <word><spaces><word>
+  let matchFuncNoReturnType = match(modifiedLine, funcNoReturnType) 
 
-  if matchFuncWithReturnType != -1 " the function has a return type (isn't a constructor or a destructor)
+  if matchFuncNoReturnType == -1 " the function has a return type (isn't a constructor or a destructor)
     let functionName= matchstr(modifiedLine, '\(\w\+\s*(.*)\)') 
     echomsg "function name: " . functionName
     let modifiedLine = substitute(modifiedLine, functionName, toAdd . functionName, '')  
