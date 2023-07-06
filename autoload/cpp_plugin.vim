@@ -1,38 +1,43 @@
 " a helper function used to extract the template<typename...> part of a class
 " declaration
 function! cpp_plugin#GetTypename () abort
-  let currentLine = getline('.') " get the current line
-  let regex = '\(template.\{-}\n\)\_.*' . currentLine . '\_.*}' " put the template <...> part in a capture group
+    let previousView = winsaveview()
 
-  let lines = getline(1, '$') " get all file lines
-  let match = matchstr(join(lines, "\n"), regex)
+    let templateLine = search('.*template.*', 'b') 
 
-  let templateTypename = substitute(match, regex, '\1', '')
-  return templateTypename 
+    if templateLine < 0
+        return ''
+    endif
+
+    call winrestview(previousView)
+    return templateLine
 
 endfunction
 
 " a helper function to get the name of the class to put 
 " before the function name (ClassName::)
-function! cpp_plugin#GetClassName () abort
-    let savedCursor = getpos('.') " save the cursor position since it will be moved 
+function! cpp_plugin#GetScopeSpecifier () abort
     let previousView = winsaveview()
 
     let currentLine = getline('.') " Get the current line 
+
+    if stridx(currentLine, 'friend') >= 0 " friend functions shouldn't have a scope specifier
+      return ''
+    endif
+
     let lineNumber = line('.') " get the number of the  current line 
 
-    call search("class", 'b') " search for the word 'class' backwards (not moving the cursor)
-    let foundPos = line('.')
-    let classLine = getline('.')
+    let foundPos = search("class", 'b') " search for the word 'class' backwards (not moving the cursor)
+    " and get the number of the line where the word 'class' was found
+    let classLine = getline('.') " get the line itself
 
-    if foundPos == 0 
-        call setpos('.', savedCursor) " set the cursor position back
+    if foundPos == 0 " no previous class definition found
         call winrestview(previousView)
         return ''
     endif
 
-    call search('{', '') " search for the '{' symbol of the class declaration
-    let openingBracket = line('.')
+    let openingBracket = search('{', '') " search for the '{' symbol of the class declaration (search forward)
+    " and save the line number where the '{' was found 
     " find the respective closing bracket
     normal! %
 
@@ -40,26 +45,28 @@ function! cpp_plugin#GetClassName () abort
         let className = substitute(classLine, '.*class\s\+\(\w\+\).*', '\1', '' ) " get the class name
         let res = className
 
-        let typenamePos = match(classLine, '.*template.*') " check if the class is a template class
+        let searchRes = search('.*template.*\<.*\>.*', 'b')
 
-        if typenamePos != -1
-            " if the class is a template class
-            let typeName = substitute(classLine, 'typename', '', '') " remove all occurances of 'typename'
-            let angleBracketsRegex = '\(\<.*\>\)' 
-            let classLine = substitute(typeName, angleBracketsRegex, '\1', '')
+        " if the search was succesful and the template ... part is one line
+        " above the class declaration
+        if searchRes > 0 && searchRes + 1 == foundPos
+            " remove all occurances of 'typename', 'class' and 'template'
+            let typename = substitute(getline('.'), ' \|template\|typename\|class', '', 'g')
+            echomsg "after substitution: " . typeName
 
-            res = res . classLine
+            let res = res . substitute(typeName, ',', ', ', 'g')
 
         endif
-        call setpos('.', savedCursor) " set the cursor position back
-        call winrestview(previousView)
-        return res . '::'
+    endif
 
-    else 
-        call setpos('.', savedCursor) " set the cursor position back
-        call winrestview(previousView)
-        return ''
-    endif 
+    call winrestview(previousView)
+    return res . '::'
+
+else 
+    call winrestview(previousView)
+    return ''
+
+endif 
 endfunction
 
 function! cpp_plugin#CreateFunctionDefinition() abort
@@ -74,8 +81,14 @@ function! cpp_plugin#CreateFunctionDefinition() abort
 
   let modifiedLine = substitute(currentLine, ';', ' {', '')  " change the ';' symbol to '{'
 
-  let toAdd = cpp_plugin#GetClassName() 
-  let templateTypename = cpp_plugin#GetTypename()
+  let toAdd = cpp_plugin#GetScopeSpecifier() 
+
+  echomsg "To add:" . toAdd 
+
+  " the function is a part of a template class
+  if stridx(toAdd, '>') >= 0
+      let templateTypename = cpp_plugin#GetTypename()
+  endif
 
   " regex match a function that has a return type - it should start with >= 0
   " spaces and contain 2 words seperated by spaces
@@ -134,7 +147,7 @@ function! cpp_plugin#CreateFunctionDefinition() abort
 
   silent! edit! " Disable warning and refresh file 
 
-  " call winrestview(savedView)
+ call winrestview(savedView)
 
 endfunction
 
@@ -192,8 +205,6 @@ function! cpp_plugin#DeclareBig6() abort
 
   call append(lineNumber, "}")
   let lineNumber += 1
-
-  echomsg "Start line" . startLineNumber . " end line " . lineNumber
 
   " format the code
   execute startLineNumber . ',' . lineNumber . 'normal! gg=G'
