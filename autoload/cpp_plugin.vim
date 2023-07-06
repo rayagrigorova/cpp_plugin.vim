@@ -15,48 +15,51 @@ endfunction
 " a helper function to get the name of the class to put 
 " before the function name (ClassName::)
 function! cpp_plugin#GetClassName () abort
-  let currentLine = getline('.') " Get the current line 
-  let lineNumber = line('.') " get the number of the  current line 
+    let savedCursor = getpos('.') " save the cursor position since it will be moved 
+    let previousView = winsaveview()
 
-  " search for the word 'class' in normal mode 
-  normal! ?class<CR>
-  let word = expand('<cword>') " get the word under the cursor
+    let currentLine = getline('.') " Get the current line 
+    let lineNumber = line('.') " get the number of the  current line 
 
-  if word != "class" " no class declarations before the current line 
-    return ''
+    call search("class", 'b') " search for the word 'class' backwards (not moving the cursor)
+    let foundPos = line('.')
+    let classLine = getline('.')
 
-  let lines = join(getlines(lineNumber, line('.')), '\n') " get the lines between the
-  " line where the cursor initially was and the first ocurrance of the word
-  " 'class' before the line 
-
-  " a regex to match the surrounding class for the current line 
-  let regex = '.*class\s\+\(\w\+\)\s*{\_.\+' . currentLine 
-  let capturedPart = matchstr(lines, regex)
-
-  if capturedPart != "" " if the current line is a part of a class declaration
-    let className = substitute(capturedPart, regex, '\1', '' ) " get the class name
-    let res = className
-
-    let typenamePos = match(capturedPart, '.*template.*') " check if the class is a template class
-
-    if typenamePos != -1
-      " if the class is a template class
-      let typeName = substitute(capturedPart, 'typename', '', '') " remove all occurances of 'typename'
-      let angleBracketsRegex = '\(\<.*\>\)' 
-      let capturedPart = substitute(typeName, angleBracketsRegex, '\1', '')
-
-      res = res . capturedPart
-
+    if foundPos == 0 
+        call setpos('.', savedCursor) " set the cursor position back
+        call winrestview(previousView)
+        return ''
     endif
-    return res . '::'
 
-  else 
-    return ''
+    call search('{', '') " search for the '{' symbol of the class declaration
+    let openingBracket = line('.')
+    " find the respective closing bracket
+    normal! %
 
-  endif 
+    if lineNumber >= openingBracket && lineNumber <= line('.') " if the current line is a part of a class declaration
+        let className = substitute(classLine, '.*class\s\+\(\w\+\).*', '\1', '' ) " get the class name
+        let res = className
 
-  call setpos('.', savedCursor) " set the cursor position back
+        let typenamePos = match(classLine, '.*template.*') " check if the class is a template class
 
+        if typenamePos != -1
+            " if the class is a template class
+            let typeName = substitute(classLine, 'typename', '', '') " remove all occurances of 'typename'
+            let angleBracketsRegex = '\(\<.*\>\)' 
+            let classLine = substitute(typeName, angleBracketsRegex, '\1', '')
+
+            res = res . classLine
+
+        endif
+        call setpos('.', savedCursor) " set the cursor position back
+        call winrestview(previousView)
+        return res . '::'
+
+    else 
+        call setpos('.', savedCursor) " set the cursor position back
+        call winrestview(previousView)
+        return ''
+    endif 
 endfunction
 
 function! cpp_plugin#CreateFunctionDefinition() abort
