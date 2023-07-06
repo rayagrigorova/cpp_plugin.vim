@@ -151,8 +151,6 @@ function! cpp_plugin#CreateFunctionDefinition() abort
         let lines = ['', modifiedLine, '', '}']
         call writefile(lines, filename, 'a')
 
-        " let currentBufferNumber = bufnr(filename)
-
         " if the current file is a header file 
     elseif currentFile =~ hFileRegex
         " find the respective .cpp file and add a function definition to it 
@@ -161,28 +159,20 @@ function! cpp_plugin#CreateFunctionDefinition() abort
         let lines = ['', modifiedLine, '', '}']
 
         if !bufexists(cppFile)
-        let parentDir = expand('%:h:h') 
-        let fileToEdit = findfile(cppFile, parentDir)
+            let parentDir = expand('%:h:h') 
+            let fileToEdit = findfile(cppFile, parentDir)
 
-        if fileToEdit == '' " the file doesn't exist
-            return 
-        endif 
+            if fileToEdit == '' " the file doesn't exist
+                return 
+            endif 
 
-        " append to the respective cpp file if it exists 
-        call writefile(lines, fileToEdit, 'a')
-        execute 'split ' . fileToEdit 
+            " append to the respective cpp file if it exists 
+            call writefile(lines, fileToEdit, 'a')
+            execute 'split ' . fileToEdit 
 
         else 
-          let windowNumber = bufwinnr(cppFile)
-
-          if windowNumber == -1 " if there are no windows open for the buffer
-              execute 'split ' . cppFile 
-          endif
-
-          silent! call appendbufline(bufnr(cppFile), '$', lines) " append to buffer 
+            silent! call appendbufline(bufnr(cppFile), '$', lines) " append to buffer 
         endif
-
-        " let currentBufferNumber = bufnr(cppFile)
 
     elseif currentFile =~ hppFileRegex
         let filename = expand('%:t')
@@ -195,17 +185,11 @@ function! cpp_plugin#CreateFunctionDefinition() abort
         let lines = ['', templateTypename, modifiedLine, '', '}']
         call writefile(lines, filename, 'a')
 
-        " let currentBufferNumber = bufnr(filename)
-
     else 
         throw 'Invalid file extension'
     endif
 
-    " exe 'buffer ' . currentBufferNumber 
-    " exe 'normal! Gk'
-
     silent! edit! " Disable warning and refresh file 
-
     call winrestview(savedView)
 
 endfunction
@@ -214,7 +198,7 @@ endfunction
 " This function is intended to work when the cursor is positioned on the line
 " declaring the class
 function! cpp_plugin#DeclareBig6() abort
-    let savedCursor = getpos('.') " save the cursor position since it will be moved 
+    let savedView = winsaveview() " save the cursor position since it will be moved 
 
     " a list of all functions to be added
     " T is used as a placeholder and will be replaced with the class name 
@@ -262,13 +246,10 @@ function! cpp_plugin#DeclareBig6() abort
         let lineNumber += 1
     endfor
 
-    call append(lineNumber, "}")
-    let lineNumber += 1
-
     " format the code
     execute startLineNumber . ',' . lineNumber . 'normal! gg=G'
 
-    call setpos('.', savedCursor) " set the cursor position back
+    call winrestview(savedView)
 
 endfunction
 
@@ -289,7 +270,8 @@ function! cpp_plugin#ExpandSnippet() abort
 endfunction
 
 function! cpp_plugin#AddBraceAndIndentation() abort
-    let savedCursor = getpos('.') " save the cursor position since it will be moved 
+    " let savedView = winsaveview()
+    let savedCursor = getpos('.')
     let currentLineNumber = line('.') " get the number of the current line 
 
     let indentationLevel = indent(currentLineNumber) " get the indentation level of the current line (in spaces)
@@ -310,6 +292,7 @@ function! cpp_plugin#AddBraceAndIndentation() abort
 
     " move right
     silent! execute 'normal! ' . (indentationLevel + userShiftWidth + 1) . 'l' 
+    " call winrestview(savedView)
 
 endfunction
 
@@ -324,9 +307,10 @@ endfunction
 " }
 function! cpp_plugin#ChangeBracketPos() abort
     " find the closest opening bracket and regex match the row 
-    " if it contains '()', then the position is currently option 1
+    " if it contains '{', then the position is currently option 1
     " otherwise it is option 2
 
+    let savedView = winsaveview()
     let savedCursor = getpos('.') " save the cursor position since it will be moved 
     let currentLine = getline('.')
 
@@ -335,21 +319,16 @@ function! cpp_plugin#ChangeBracketPos() abort
     if !lineContainsBracket
         " Position the cursor on the row containing the respective opening bracket
         normal! ?{<CR>
-        let regexOption1 = '.*().*'
+        normal! j0f{xkA {
+
+            " If the initial line contains an opening brace or the destination line contains an opening brace 
+    else
+        " delete the { symbol
+        normal! f{x
+        call append(line('.'), "{")
+
     endif
 
-    " If the initial line contains an opening brace or the destination line contains an opening brace 
-    if lineContainsBracket || regexOption1 =~ getline('.') 
-        " delete the { symbol
-        if lineContainsBracket
-            normal! f{
-        endif
+    call winrestview(savedView)
 
-        normal! x
-        call append(line('.'), "{")
-    else 
-        normal! j0f{xkA {
-        endif
-
-        call setpos('.', savedCursor) " set the cursor position back
-    endfunction
+endfunction

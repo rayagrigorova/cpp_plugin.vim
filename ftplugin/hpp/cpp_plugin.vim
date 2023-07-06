@@ -1,30 +1,334 @@
-" Ако сме в compatible mode или plugin-ът е зареден, finish 
-if exists('g:loaded_cpp_plugin') || &cp
-	finish
-endif
-let g:loaded_cpp_plugin = '0.0.1' 
-let s:keepcpo = &cpo
-set cpo&vim
+" a helper function used to extract the template <typename...> part of a class
+" declaration
 
-nnoremap <Leader>cad :call cpp_plugin#CreateFunctionDefinition()<CR>
+" this function doesn't perform a check if a line of code is a part of a class
+" this is handled in the GetClassName() function 
+function! cpp_plugin#GetTypename () abort
+    let previousView = winsaveview()
+    " search for a line that contains the pattern 'template ... <...>
+    let templateLine = search('.*template.*\<.*\>.*', 'b') 
 
-" pairs of trigger words and code snippets
-let g:cppsnippets = {
-  \ 'forl': "for (int i = 0; i < n; i++) {\n\n}",
-  \ 'myStrlen': "size_t myStrlen(const char* str)\n{\nif (str == nullptr)\nreturn 0;\n\nsize_t count = 0;\nwhile (*str != '\\0')\n{\ncount++;\nstr++;\n}\nreturn count;\n}",
-  \ 'myStrcmp': "int myStrcmp(const char* first, const char* second)\n{\nif (first == nullptr || second == nullptr)\nreturn 0; //error\n\nwhile (*first != '\\0' && *second != '\\0')\n{\nif (*first < *second)\nreturn -1;\nif (*first > *second)\nreturn 1;\nfirst++;\nsecond++;\n}\n\nif (*first == '\\0' && *second == '\\0')\nreturn 0;\n\nreturn *first == '\\0' ? -1 : 1;\n}",
-  \ 'myStrCat': "void myStrCat(char* dest, const char* source)\n{\nsize_t destLen = myStrlen(dest);\ndest += destLen;\nmyStrCopy(source, dest);\n}",
-  \ 'myStrCpy': "void myStrCpy(const char* source, char* dest)\n{\nif (source == nullptr || dest == nullptr)\nreturn;\n\nwhile (*source != '\\0')\n{\n*dest = *source;\ndest++;\nsource++;\n}\n*dest = '\\0';\n}",
-  \ 'printArray': "for (int i = 0; i < size; i++) {\nstd::cout << arr[i] << \" \";\n}\nstd::cout << std::endl;",
-  \ 'bubbleSort': "for (int i = 0; i < size - 1; i++) {\nbool isSwapped = false;\nfor (int j = 0; j < size - 1 - i; j++) {\nif (arr[j] > arr[j + 1]) {\nswap(arr[j], arr[j + 1]);\nisSwapped = true;\n}\n}\nif (!isSwapped)\nreturn;\n}",
-  \ 'insertionSort': "void insert(int* arr, size_t size) // sorted, but without the last element\n{\nint el = arr[size - 1];\nint iter = size - 2;\n\nwhile (iter >= 0 && el < arr[iter]) {\narr[iter + 1] = arr[iter];\niter--;\n}\narr[iter + 1] = el;\n}\n\nvoid insertionSort(int* arr, size_t size)\n{\nfor (int i = 1; i < size; i++)\ninsert(arr, i + 1);\n}"
-  \ }
+    if templateLine < 0
+        return ''
+    endif
 
-command! Big6 :call cpp_plugin#DeclareBig6()<CR>
+    call winrestview(previousView)
+    return getline(templateLine)
 
-nnoremap <Leader>es :call cpp_plugin#ExpandSnippet()<CR>
-inoremap <buffer> { {<C-O>:call cpp_plugin#AddBraceAndIndentation()<CR>
-nnoremap <Leader>cbp :call cpp_plugin#ChangeBracketPos()<CR>
+endfunction
 
-let &cpo = s:keepcpo 
-unlet s:keepcpo
+" a helper function to get the scope name specifier
+function! cpp_plugin#GetScopeSpecifier () abort
+    let previousView = winsaveview()
+
+    let currentLine = getline('.') " Get the current line 
+
+    if stridx(currentLine, 'friend') >= 0 " friend functions shouldn't have a scope specifier
+        return ''
+    endif
+
+    let lineNumber = line('.') " get the number of the  current line 
+
+    " search for the word 'class' backwards and get the number of the line where the word 'class' was found
+    let classFoundPos = search("class", 'b')
+    let classLine = getline('.') " get the line itself
+
+    if classFoundPos == 0 " no previous class definition found
+        call winrestview(previousView)
+        return ''
+    endif
+
+    " search for the '{' symbol of the class declaration (search forward) and save the line number 
+    let openingBracket = search('{', '') 
+
+    " find the respective closing bracket
+    normal! %
+
+    if lineNumber >= openingBracket && lineNumber <= line('.') " if the current line is a part of a class declaration
+        let className = substitute(classLine, '.*class\s\+\(\w\+\).*', '\1', '' ) " get the class name
+        let res = className
+
+        let searchRes = search('.*template.*\<.*\>.*', 'b')
+
+        " if the search was succesful and the template <...> part is one line above the class declaration
+        if searchRes > 0 && searchRes + 1 == classFoundPos
+            " remove all occurances of 'typename', 'class' and 'template'
+            let typename = substitute(getline('.'), ' \|template\|typename\|class', '', 'g')
+            let res = res . substitute(typename, ',', ', ', 'g') " concat with result string
+
+        endif
+    endif
+
+    call winrestview(previousView)
+    return res . '::'
+
+else " not a part of a class (there are classes above the current line)
+    call winrestview(previousView)
+    return ''
+
+endif 
+endfunction
+
+
+function! cpp_plugin#RemoveFuntionModifiers (str) abort
+    let functionModifiers = [
+                \ 'virtual',
+                \ 'override',
+                \ 'constexpr',
+                \ 'inline',
+                \ 'static',
+                \ 'explicit',
+                \ 'friend',
+                \ 'final'
+                \ ]
+
+    let modifiedStr = a:str
+
+    for modifier in functionModifiers
+        let modifiedStr = substitute(modifiedStr, modifier, '', '')
+    endfor
+
+    let modifiedStr = substitute(modifiedStr, '\((.*)\s\+\)const\(.*\)', '\1\2', '') " remove 'const' if it's after brackets
+    " let modifiedStr = substitute(modifiedStr, '\s*\(\w*(.*)\)\s*\(const?\s\+noexcept?\)\({\)\s*', '\1 \2 \3', '')
+    let modifiedStr = substitute(modifiedStr, ' \{2,}', ' ', 'g') " replace groups of >= 2 spaces with a single one 
+    let modifiedStr = substitute(modifiedStr, '^\s*', '', '') " remove leading whitespaces 
+
+    return modifiedStr
+
+endfunction
+
+function! cpp_plugin#CreateFunctionDefinition() abort
+    let savedView = winsaveview()
+    let currentLine = substitute(getline('.'), '^\s*', '', '') " get the current line and remove tabs
+
+    " functions that are deleted, default or pure virtual shouldn't have a definition
+    if stridx(currentLine, 'delete') >= 0 || stridx(currentLine, 'default') >= 0
+                \ || currentLine =~ '.*=\s*0.*'
+        return
+    endif
+
+    let currentFile = expand('%:t') " get the last component of the filename only 
+
+    let hFileRegex = '.*\.h$' " match .h files 
+    let cppFileRegex = '.*\.cpp$' " match .cpp files 
+    let hppFileRegex = '.*\.hpp$' " match .hpp files 
+
+    let modifiedLine = substitute(currentLine, ';', ' {', '')  " change the ';' symbol to '{'
+
+    let toAdd = cpp_plugin#GetScopeSpecifier() 
+
+    " the function is a part of a template class
+    if stridx(toAdd, '>') >= 0
+        let templateTypename = cpp_plugin#GetTypename()
+    endif
+
+    let modifiedLine = cpp_plugin#RemoveFuntionModifiers(modifiedLine)
+
+    " regex match a function that has a return type - it should start with >= 0
+    " spaces and contain 2 words seperated by spaces
+    let funcNoReturnType = '\s*\~?\w\+(.*).*'
+
+    let matchFuncNoReturnType = match(modifiedLine, funcNoReturnType) 
+
+    if matchFuncNoReturnType == -1 " the function has a return type (isn't a constructor or a destructor)
+        let functionNamePos = match(modifiedLine, '\(\w\+\|operator.\{0,2}\)\s*(.*)') 
+        let modifiedLine = strpart(modifiedLine, 0, functionNamePos) . toAdd . strpart(modifiedLine, functionNamePos)
+
+    else 
+        let modifiedLine = toAdd . modifiedLine " if the function doesn't have a return type, simply add
+        " ClassName:: before the name of the function
+    endif
+
+    " determine where to put the function definition
+
+    " let currentBufferNumber = 0 " The number of the buffer will be used to position the cursor at its end 
+    " if the current file is a cpp file, create a function definition 
+    " at the end of the file 
+    if currentFile =~ cppFileRegex
+        let filename = expand('%:t')
+        let endLine = line('$') " get the line number of the last line in the file 
+
+        let lines = ['', modifiedLine, '', '}']
+        call writefile(lines, filename, 'a')
+
+        " if the current file is a header file 
+    elseif currentFile =~ hFileRegex
+        " find the respective .cpp file and add a function definition to it 
+        let cppFile = substitute(currentFile, '.h', '.cpp', '')
+
+        let lines = ['', modifiedLine, '', '}']
+
+        if !bufexists(cppFile)
+            let parentDir = expand('%:h:h') 
+            let fileToEdit = findfile(cppFile, parentDir)
+
+            if fileToEdit == '' " the file doesn't exist
+                return 
+            endif 
+
+            " append to the respective cpp file if it exists 
+            call writefile(lines, fileToEdit, 'a')
+            execute 'split ' . fileToEdit 
+
+        else 
+            silent! call appendbufline(bufnr(cppFile), '$', lines) " append to buffer 
+        endif
+
+    elseif currentFile =~ hppFileRegex
+        let filename = expand('%:t')
+        " The result is almost the same as with .cpp files, but the only
+        " difference is that the row before the function should contain
+        " 'template <typename T, typename S ....>
+
+        let endLine = line('$') " get the line number of the last line in the file 
+
+        let lines = ['', templateTypename, modifiedLine, '', '}']
+        call writefile(lines, filename, 'a')
+
+    else 
+        throw 'Invalid file extension'
+    endif
+
+    silent! edit! " Disable warning and refresh file 
+    call winrestview(savedView)
+
+endfunction
+
+
+" This function is intended to work when the cursor is positioned on the line
+" declaring the class
+function! cpp_plugin#DeclareBig6() abort
+    let savedView = winsaveview() " save the cursor position since it will be moved 
+
+    " a list of all functions to be added
+    " T is used as a placeholder and will be replaced with the class name 
+
+    let functionList = [
+                \ "void free();", 
+                \ "void copyFrom(const T& other);", 
+                \ "void moveFrom(T&& other);", 
+                \ "T();", 
+                \ "T(const T& other);", 
+                \ "T& operator=(const T& other);", 
+                \ "~T();", 
+                \ "T(T&& other) noexcept;", 
+                \ "T& operator=(T&& other) noexcept;" 
+                \ ]
+
+    let currentLine = getline('.') " get the current line
+    let startLineNumber = line('.') " save the number of the first line so that the code can be formatted later 
+
+    let classNameRegex = 'class\s\+\(\w\+\).*' " capture the class name 
+    let className = substitute(currentLine, classNameRegex, '\1', '') " get the class name from the current line
+
+    let modifiedFunctionList = map(copy(functionList), {_, v -> substitute(v, 'T', className, 'g')}) 
+    " The '_' variable is unused and is only added for consistency - map() expects a lambda function with 2 arguments 
+    "		If {expr2} is a |Funcref| it is called with two arguments:
+    "			1. The key or the index of the current item.
+    "			2. the value of the current item.
+
+    " search for the next opening brace and then go one line down 
+    normal! /{<CR>j
+    let lineNumber = line('.') " get the line number 
+
+    for i in range (0, 2) " add the first 3 functions 
+        call append(lineNumber, modifiedFunctionList[i])
+        let lineNumber += 1
+    endfor
+
+    call append (lineNumber, "") " add an empty line 
+    let lineNumber += 1
+    call append (lineNumber, "public:") " add 'public' modifier before the next functions
+    let lineNumber += 1
+
+    for i in range (3, len(modifiedFunctionList) - 1) " add the next functions 
+        call append(lineNumber, modifiedFunctionList[i])
+        let lineNumber += 1
+    endfor
+
+    " format the code
+    execute startLineNumber . ',' . lineNumber . 'normal! gg=G'
+
+    call winrestview(savedView)
+
+endfunction
+
+" a function that expands the word under the cursor to the respective code
+" snippet
+function! cpp_plugin#ExpandSnippet() abort 
+    let snippet = get(g:cppsnippets, expand('<cword>'), 'Not found') " the default value returned is 'Not found'
+
+    " delete the word used to trigger the snippet expansion
+    normal! diW
+
+    if snippet == 'Not found'
+        echomsg "Snippet not found."
+        return 
+    else
+        execute 'normal! i' . snippet  
+    endif
+endfunction
+
+function! cpp_plugin#AddBraceAndIndentation() abort
+    " let savedView = winsaveview()
+    let savedCursor = getpos('.')
+    let currentLineNumber = line('.') " get the number of the current line 
+
+    let indentationLevel = indent(currentLineNumber) " get the indentation level of the current line (in spaces)
+    let userShiftWidth = &shiftwidth 
+
+    call append(line('.'), '}') " this line should appear last
+    call append(line('.'), '') 
+
+    " format the code
+    silent! execute 'normal! gg=G'
+
+    call setpos('.', savedCursor) " set the cursor position back
+
+    " move to the line below 
+    silent! execute 'normal! j' 
+
+    call setline('.', repeat(' ', indentationLevel + userShiftWidth + 1)) " add necessary number of spaces
+
+    " move right
+    silent! execute 'normal! ' . (indentationLevel + userShiftWidth + 1) . 'l' 
+    " call winrestview(savedView)
+
+endfunction
+
+
+" void foo () { // Option 1
+"
+" }
+"
+" void bar ()
+" { // Option 2
+"
+" }
+function! cpp_plugin#ChangeBracketPos() abort
+    " find the closest opening bracket and regex match the row 
+    " if it contains '{', then the position is currently option 1
+    " otherwise it is option 2
+
+    let savedView = winsaveview()
+    let savedCursor = getpos('.') " save the cursor position since it will be moved 
+    let currentLine = getline('.')
+
+    let lineContainsBracket = currentLine =~ '.*{.*' 
+
+    if !lineContainsBracket
+        " Position the cursor on the row containing the respective opening bracket
+        normal! ?{<CR>
+        normal! j0f{xkA {
+
+            " If the initial line contains an opening brace or the destination line contains an opening brace 
+    else
+        " delete the { symbol
+        normal! f{x
+        call append(line('.'), "{")
+
+    endif
+
+    call winrestview(savedView)
+
+endfunction
