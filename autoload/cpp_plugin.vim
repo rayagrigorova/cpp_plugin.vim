@@ -1,5 +1,6 @@
 " a helper function used to extract the template<typename...> part of a class
 " declaration
+
 function! cpp_plugin#GetTypename () abort
     let previousView = winsaveview()
 
@@ -69,10 +70,32 @@ else
 endif 
 endfunction
 
+
+function! cpp_plugin#RemoveFuntionModifiers (str) abort
+    let functionModifiers = [
+                \ 'virtual',
+                \ 'override',
+                \ 'const',
+                \ 'constexpr',
+                \ 'inline',
+                \ 'static',
+                \ 'explicit',
+                \ 'friend',
+                \ 'noexcept',
+                \ 'mutable',
+                \ 'final'
+                \ ]
+endfunction
+
 function! cpp_plugin#CreateFunctionDefinition() abort
   let savedView = winsaveview()
-
   let currentLine = substitute(getline('.'), '^\s*', '', '') " get the current line and remove tabs
+
+  " functions that are deleted or default shouldn't have a definition
+  if stridx(currentLine, 'delete') >= 0 || stridx(currentLine, 'default') >= 0
+    return
+  endif
+
   let currentFile = expand('%:t') " get the last component of the filename only 
 
   let hFileRegex = '.*\.h$' " match .h files 
@@ -89,6 +112,8 @@ function! cpp_plugin#CreateFunctionDefinition() abort
   if stridx(toAdd, '>') >= 0
       let templateTypename = cpp_plugin#GetTypename()
   endif
+
+  call 
 
   " regex match a function that has a return type - it should start with >= 0
   " spaces and contain 2 words seperated by spaces
