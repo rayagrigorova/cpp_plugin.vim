@@ -3,14 +3,14 @@
 function! cpp_plugin#GetTypename () abort
     let previousView = winsaveview()
 
-    let templateLine = search('.*template.*', 'b') 
+    let templateLine = search('.*template.*\<.*\>.*', 'b') 
 
     if templateLine < 0
         return ''
     endif
 
     call winrestview(previousView)
-    return templateLine
+    return getline(templateLine)
 
 endfunction
 
@@ -52,9 +52,9 @@ function! cpp_plugin#GetScopeSpecifier () abort
         if searchRes > 0 && searchRes + 1 == foundPos
             " remove all occurances of 'typename', 'class' and 'template'
             let typename = substitute(getline('.'), ' \|template\|typename\|class', '', 'g')
-            echomsg "after substitution: " . typeName
+            echomsg "after substitution: " . typename
 
-            let res = res . substitute(typeName, ',', ', ', 'g')
+            let res = res . substitute(typename, ',', ', ', 'g')
 
         endif
     endif
