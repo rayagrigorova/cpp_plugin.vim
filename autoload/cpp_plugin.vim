@@ -1,9 +1,11 @@
-" a helper function used to extract the template<typename...> part of a class
+" a helper function used to extract the template <typename...> part of a class
 " declaration
 
+" this function doesn't perform a check if a line of code is a part of a class
+" this is handled in the GetClassName() function 
 function! cpp_plugin#GetTypename () abort
     let previousView = winsaveview()
-
+    " search for a line that contains the pattern 'template ... <...>
     let templateLine = search('.*template.*\<.*\>.*', 'b') 
 
     if templateLine < 0
@@ -15,30 +17,30 @@ function! cpp_plugin#GetTypename () abort
 
 endfunction
 
-" a helper function to get the name of the class to put 
-" before the function name (ClassName::)
+" a helper function to get the scope name specifier
 function! cpp_plugin#GetScopeSpecifier () abort
     let previousView = winsaveview()
 
     let currentLine = getline('.') " Get the current line 
 
     if stridx(currentLine, 'friend') >= 0 " friend functions shouldn't have a scope specifier
-      return ''
+        return ''
     endif
 
     let lineNumber = line('.') " get the number of the  current line 
 
-    let foundPos = search("class", 'b') " search for the word 'class' backwards (not moving the cursor)
-    " and get the number of the line where the word 'class' was found
+    " search for the word 'class' backwards and get the number of the line where the word 'class' was found
+    let classFoundPos = search("class", 'b')
     let classLine = getline('.') " get the line itself
 
-    if foundPos == 0 " no previous class definition found
+    if classFoundPos == 0 " no previous class definition found
         call winrestview(previousView)
         return ''
     endif
 
-    let openingBracket = search('{', '') " search for the '{' symbol of the class declaration (search forward)
-    " and save the line number where the '{' was found 
+    " search for the '{' symbol of the class declaration (search forward) and save the line number 
+    let openingBracket = search('{', '') 
+
     " find the respective closing bracket
     normal! %
 
@@ -48,13 +50,11 @@ function! cpp_plugin#GetScopeSpecifier () abort
 
         let searchRes = search('.*template.*\<.*\>.*', 'b')
 
-        " if the search was succesful and the template ... part is one line
-        " above the class declaration
-        if searchRes > 0 && searchRes + 1 == foundPos
+        " if the search was succesful and the template <...> part is one line above the class declaration
+        if searchRes > 0 && searchRes + 1 == classFoundPos
             " remove all occurances of 'typename', 'class' and 'template'
             let typename = substitute(getline('.'), ' \|template\|typename\|class', '', 'g')
-
-            let res = res . substitute(typename, ',', ', ', 'g')
+            let res = res . substitute(typename, ',', ', ', 'g') " concat with result string
 
         endif
     endif
@@ -62,7 +62,7 @@ function! cpp_plugin#GetScopeSpecifier () abort
     call winrestview(previousView)
     return res . '::'
 
-else 
+else " not a part of a class (there are classes above the current line)
     call winrestview(previousView)
     return ''
 
@@ -85,105 +85,128 @@ function! cpp_plugin#RemoveFuntionModifiers (str) abort
     let modifiedStr = a:str
 
     for modifier in functionModifiers
-      let modifiedStr = substitute(modifiedStr, modifier, '', '')
+        let modifiedStr = substitute(modifiedStr, modifier, '', '')
     endfor
 
     let modifiedStr = substitute(modifiedStr, '\((.*)\s\+\)const\(.*\)', '\1\2', '') " remove 'const' if it's after brackets
-    let modifiedStr = substitute(modifiedStr, '\(.*(.*)\)\s\+\({\)', '\1 \2', '')
+    " let modifiedStr = substitute(modifiedStr, '\s*\(\w*(.*)\)\s*\(const?\s\+noexcept?\)\({\)\s*', '\1 \2 \3', '')
+    let modifiedStr = substitute(modifiedStr, ' \{2,}', ' ', 'g') " replace groups of >= 2 spaces with a single one 
+    let modifiedStr = substitute(modifiedStr, '^\s*', '', '') " remove leading whitespaces 
 
     return modifiedStr
 
 endfunction
 
 function! cpp_plugin#CreateFunctionDefinition() abort
-  let savedView = winsaveview()
-  let currentLine = substitute(getline('.'), '^\s*', '', '') " get the current line and remove tabs
+    let savedView = winsaveview()
+    let currentLine = substitute(getline('.'), '^\s*', '', '') " get the current line and remove tabs
 
-  " functions that are deleted or default shouldn't have a definition
-  if stridx(currentLine, 'delete') >= 0 || stridx(currentLine, 'default') >= 0
-    return
-  endif
+    " functions that are deleted, default or pure virtual shouldn't have a definition
+    if stridx(currentLine, 'delete') >= 0 || stridx(currentLine, 'default') >= 0
+                \ || currentLine =~ '.*=\s*0.*'
+        return
+    endif
 
-  let currentFile = expand('%:t') " get the last component of the filename only 
+    let currentFile = expand('%:t') " get the last component of the filename only 
 
-  let hFileRegex = '.*\.h$' " match .h files 
-  let cppFileRegex = '.*\.cpp$' " match .cpp files 
-  let hppFileRegex = '.*\.hpp$' " match .hpp files 
+    let hFileRegex = '.*\.h$' " match .h files 
+    let cppFileRegex = '.*\.cpp$' " match .cpp files 
+    let hppFileRegex = '.*\.hpp$' " match .hpp files 
 
-  let modifiedLine = substitute(currentLine, ';', ' {', '')  " change the ';' symbol to '{'
+    let modifiedLine = substitute(currentLine, ';', ' {', '')  " change the ';' symbol to '{'
 
-  let toAdd = cpp_plugin#GetScopeSpecifier() 
+    let toAdd = cpp_plugin#GetScopeSpecifier() 
 
-  echomsg "To add:" . toAdd 
+    " the function is a part of a template class
+    if stridx(toAdd, '>') >= 0
+        let templateTypename = cpp_plugin#GetTypename()
+    endif
 
-  " the function is a part of a template class
-  if stridx(toAdd, '>') >= 0
-      let templateTypename = cpp_plugin#GetTypename()
-  endif
+    let modifiedLine = cpp_plugin#RemoveFuntionModifiers(modifiedLine)
 
-  let modifiedLine = cpp_plugin#RemoveFuntionModifiers(modifiedLine)
+    " regex match a function that has a return type - it should start with >= 0
+    " spaces and contain 2 words seperated by spaces
+    let funcNoReturnType = '\s*\~?\w\+(.*).*'
 
-  echomsg "Modified line:" . modifiedLine 
-  " regex match a function that has a return type - it should start with >= 0
-  " spaces and contain 2 words seperated by spaces
-  let funcNoReturnType = '\s*\~?\w\+(.*).*'
+    let matchFuncNoReturnType = match(modifiedLine, funcNoReturnType) 
 
-  let matchFuncNoReturnType = match(modifiedLine, funcNoReturnType) 
+    if matchFuncNoReturnType == -1 " the function has a return type (isn't a constructor or a destructor)
+        let functionNamePos = match(modifiedLine, '\(\w\+\|operator.\{0,2}\)\s*(.*)') 
+        let modifiedLine = strpart(modifiedLine, 0, functionNamePos) . toAdd . strpart(modifiedLine, functionNamePos)
 
-  if matchFuncNoReturnType == -1 " the function has a return type (isn't a constructor or a destructor)
-    let functionName= matchstr(modifiedLine, '\(\w\+\s*(.*)\)') 
-    echomsg "function name: " . functionName
-    let modifiedLine = substitute(modifiedLine, functionName, toAdd . functionName, '')  
+    else 
+        let modifiedLine = toAdd . modifiedLine " if the function doesn't have a return type, simply add
+        " ClassName:: before the name of the function
+    endif
 
-  else 
-  echomsg "oooopss" 
-    let modifiedLine = toAdd . modifiedLine " if the function doesn't have a return type, simply add
-    " ClassName:: before the name of the function
-  endif
+    " determine where to put the function definition
 
-  " determine where to put the function definition
+    " let currentBufferNumber = 0 " The number of the buffer will be used to position the cursor at its end 
+    " if the current file is a cpp file, create a function definition 
+    " at the end of the file 
+    if currentFile =~ cppFileRegex
+        let filename = expand('%:t')
+        let endLine = line('$') " get the line number of the last line in the file 
 
-  " if the current file is a cpp file, create a function definition 
-  " at the end of the file 
-  if currentFile =~ cppFileRegex
-    let endLine = line('$') " get the line number of the last line in the file 
+        let lines = ['', modifiedLine, '', '}']
+        call writefile(lines, filename, 'a')
 
-    let lines = [ modifiedLine, '', '}']
-    call writefile(lines, expand('%:t'), 'a')
+        " let currentBufferNumber = bufnr(filename)
 
-  " if the current file is a header file 
-  elseif currentFile =~ hFileRegex
-    " find the respective .cpp file and add a function definition to it 
-    let cppFile = substitute(currentFile, '.h', '.cpp', '')
-    let parentDir = expand('%:h:h') 
-    let fileToEdit = findfile(cppFile, parentDir)
+        " if the current file is a header file 
+    elseif currentFile =~ hFileRegex
+        " find the respective .cpp file and add a function definition to it 
+        let cppFile = substitute(currentFile, '.h', '.cpp', '')
 
-    if fileToEdit == '' " the file doesn't exist
-      return 
-    endif 
+        let lines = ['', modifiedLine, '', '}']
 
-    " append to the respective cpp file if it exists 
-    let lines = ['', modifiedLine, '', '}']
-    call writefile(lines, fileToEdit, 'a')
-    execute 'vsplit ' . fileToEdit 
+        if !bufexists(cppFile)
+        let parentDir = expand('%:h:h') 
+        let fileToEdit = findfile(cppFile, parentDir)
 
-  elseif currentFile =~ hppFileRegex
-    " The result is almost the same as with .cpp files, but the only
-    " difference is that the row before the function should contain
-    " 'template <typename T, typename S ....>
+        if fileToEdit == '' " the file doesn't exist
+            return 
+        endif 
 
-    let endLine = line('$') " get the line number of the last line in the file 
+        " append to the respective cpp file if it exists 
+        call writefile(lines, fileToEdit, 'a')
+        execute 'split ' . fileToEdit 
 
-    let lines = [templateTypename, modifiedLine, '', '}']
-    call writefile(lines, expand('%:t'), 'a')
+        else 
+          let windowNumber = bufwinnr(cppFile)
 
-  else 
-    throw 'Invalid file extension'
-  endif
+          if windowNumber == -1 " if there are no windows open for the buffer
+              execute 'split ' . cppFile 
+          endif
 
-  silent! edit! " Disable warning and refresh file 
+          silent! call appendbufline(bufnr(cppFile), '$', lines) " append to buffer 
+        endif
 
- call winrestview(savedView)
+        " let currentBufferNumber = bufnr(cppFile)
+
+    elseif currentFile =~ hppFileRegex
+        let filename = expand('%:t')
+        " The result is almost the same as with .cpp files, but the only
+        " difference is that the row before the function should contain
+        " 'template <typename T, typename S ....>
+
+        let endLine = line('$') " get the line number of the last line in the file 
+
+        let lines = ['', templateTypename, modifiedLine, '', '}']
+        call writefile(lines, filename, 'a')
+
+        " let currentBufferNumber = bufnr(filename)
+
+    else 
+        throw 'Invalid file extension'
+    endif
+
+    " exe 'buffer ' . currentBufferNumber 
+    " exe 'normal! Gk'
+
+    silent! edit! " Disable warning and refresh file 
+
+    call winrestview(savedView)
 
 endfunction
 
@@ -191,61 +214,61 @@ endfunction
 " This function is intended to work when the cursor is positioned on the line
 " declaring the class
 function! cpp_plugin#DeclareBig6() abort
-  let savedCursor = getpos('.') " save the cursor position since it will be moved 
+    let savedCursor = getpos('.') " save the cursor position since it will be moved 
 
-  " a list of all functions to be added
-  " T is used as a placeholder and will be replaced with the class name 
+    " a list of all functions to be added
+    " T is used as a placeholder and will be replaced with the class name 
 
-  let functionList = [
-        \ "void free();", 
-        \ "void copyFrom(const T& other);", 
-        \ "void moveFrom(T&& other);", 
-        \ "T();", 
-        \ "T(const T& other);", 
-        \ "T& operator=(const T& other);", 
-        \ "~T();", 
-        \ "T(T&& other) noexcept;", 
-        \ "T& operator=(T&& other) noexcept;" 
-        \ ]
+    let functionList = [
+                \ "void free();", 
+                \ "void copyFrom(const T& other);", 
+                \ "void moveFrom(T&& other);", 
+                \ "T();", 
+                \ "T(const T& other);", 
+                \ "T& operator=(const T& other);", 
+                \ "~T();", 
+                \ "T(T&& other) noexcept;", 
+                \ "T& operator=(T&& other) noexcept;" 
+                \ ]
 
-  let currentLine = getline('.') " get the current line
-  let startLineNumber = line('.') " save the number of the first line so that the code can be formatted later 
+    let currentLine = getline('.') " get the current line
+    let startLineNumber = line('.') " save the number of the first line so that the code can be formatted later 
 
-  let classNameRegex = 'class\s\+\(\w\+\).*' " capture the class name 
-  let className = substitute(currentLine, classNameRegex, '\1', '') " get the class name from the current line
+    let classNameRegex = 'class\s\+\(\w\+\).*' " capture the class name 
+    let className = substitute(currentLine, classNameRegex, '\1', '') " get the class name from the current line
 
-  let modifiedFunctionList = map(copy(functionList), {_, v -> substitute(v, 'T', className, 'g')}) 
-  " The '_' variable is unused and is only added for consistency - map() expects a lambda function with 2 arguments 
-"		If {expr2} is a |Funcref| it is called with two arguments:
-"			1. The key or the index of the current item.
-"			2. the value of the current item.
+    let modifiedFunctionList = map(copy(functionList), {_, v -> substitute(v, 'T', className, 'g')}) 
+    " The '_' variable is unused and is only added for consistency - map() expects a lambda function with 2 arguments 
+    "		If {expr2} is a |Funcref| it is called with two arguments:
+    "			1. The key or the index of the current item.
+    "			2. the value of the current item.
 
-  " search for the next opening brace and then go one line down 
-  normal! /{<CR>j
-  let lineNumber = line('.') " get the line number 
+    " search for the next opening brace and then go one line down 
+    normal! /{<CR>j
+    let lineNumber = line('.') " get the line number 
 
-  for i in range (0, 2) " add the first 3 functions 
-    call append(lineNumber, modifiedFunctionList[i])
+    for i in range (0, 2) " add the first 3 functions 
+        call append(lineNumber, modifiedFunctionList[i])
+        let lineNumber += 1
+    endfor
+
+    call append (lineNumber, "") " add an empty line 
     let lineNumber += 1
-  endfor
-
-  call append (lineNumber, "") " add an empty line 
-  let lineNumber += 1
-  call append (lineNumber, "public:") " add 'public' modifier before the next functions
-  let lineNumber += 1
-
-  for i in range (3, len(modifiedFunctionList) - 1) " add the next functions 
-    call append(lineNumber, modifiedFunctionList[i])
+    call append (lineNumber, "public:") " add 'public' modifier before the next functions
     let lineNumber += 1
-  endfor
 
-  call append(lineNumber, "}")
-  let lineNumber += 1
+    for i in range (3, len(modifiedFunctionList) - 1) " add the next functions 
+        call append(lineNumber, modifiedFunctionList[i])
+        let lineNumber += 1
+    endfor
 
-  " format the code
-  execute startLineNumber . ',' . lineNumber . 'normal! gg=G'
+    call append(lineNumber, "}")
+    let lineNumber += 1
 
-  call setpos('.', savedCursor) " set the cursor position back
+    " format the code
+    execute startLineNumber . ',' . lineNumber . 'normal! gg=G'
+
+    call setpos('.', savedCursor) " set the cursor position back
 
 endfunction
 
@@ -266,27 +289,27 @@ function! cpp_plugin#ExpandSnippet() abort
 endfunction
 
 function! cpp_plugin#AddBraceAndIndentation() abort
-  let savedCursor = getpos('.') " save the cursor position since it will be moved 
-  let currentLineNumber = line('.') " get the number of the current line 
+    let savedCursor = getpos('.') " save the cursor position since it will be moved 
+    let currentLineNumber = line('.') " get the number of the current line 
 
-  let indentationLevel = indent(currentLineNumber) " get the indentation level of the current line (in spaces)
-  let userShiftWidth = &shiftwidth 
+    let indentationLevel = indent(currentLineNumber) " get the indentation level of the current line (in spaces)
+    let userShiftWidth = &shiftwidth 
 
-  call append(line('.'), '}') " this line should appear last
-  call append(line('.'), '') 
+    call append(line('.'), '}') " this line should appear last
+    call append(line('.'), '') 
 
-  " format the code
-  silent! execute 'normal! gg=G'
+    " format the code
+    silent! execute 'normal! gg=G'
 
-  call setpos('.', savedCursor) " set the cursor position back
+    call setpos('.', savedCursor) " set the cursor position back
 
-  " move to the line below 
-  silent! execute 'normal! j' 
+    " move to the line below 
+    silent! execute 'normal! j' 
 
-  call setline('.', repeat(' ', indentationLevel + userShiftWidth + 1)) " add necessary number of spaces
+    call setline('.', repeat(' ', indentationLevel + userShiftWidth + 1)) " add necessary number of spaces
 
-  " move right
-  silent! execute 'normal! ' . (indentationLevel + userShiftWidth + 1) . 'l' 
+    " move right
+    silent! execute 'normal! ' . (indentationLevel + userShiftWidth + 1) . 'l' 
 
 endfunction
 
@@ -300,33 +323,33 @@ endfunction
 "
 " }
 function! cpp_plugin#ChangeBracketPos() abort
-  " find the closest opening bracket and regex match the row 
-  " if it contains '()', then the position is currently option 1
-  " otherwise it is option 2
+    " find the closest opening bracket and regex match the row 
+    " if it contains '()', then the position is currently option 1
+    " otherwise it is option 2
 
-  let savedCursor = getpos('.') " save the cursor position since it will be moved 
-  let currentLine = getline('.')
+    let savedCursor = getpos('.') " save the cursor position since it will be moved 
+    let currentLine = getline('.')
 
-  let lineContainsBracket = currentLine =~ '.*{.*' 
+    let lineContainsBracket = currentLine =~ '.*{.*' 
 
-  if !lineContainsBracket
-    " Position the cursor on the row containing the respective opening bracket
-    normal! ?{<CR>
-    let regexOption1 = '.*().*'
-  endif
-
-" If the initial line contains an opening brace or the destination line contains an opening brace 
-  if lineContainsBracket || regexOption1 =~ getline('.') 
-    " delete the { symbol
-    if lineContainsBracket
-      normal! f{
+    if !lineContainsBracket
+        " Position the cursor on the row containing the respective opening bracket
+        normal! ?{<CR>
+        let regexOption1 = '.*().*'
     endif
 
-    normal! x
-    call append(line('.'), "{")
-  else 
-    normal! j0f{xkA {
-  endif
+    " If the initial line contains an opening brace or the destination line contains an opening brace 
+    if lineContainsBracket || regexOption1 =~ getline('.') 
+        " delete the { symbol
+        if lineContainsBracket
+            normal! f{
+        endif
 
-  call setpos('.', savedCursor) " set the cursor position back
-endfunction
+        normal! x
+        call append(line('.'), "{")
+    else 
+        normal! j0f{xkA {
+        endif
+
+        call setpos('.', savedCursor) " set the cursor position back
+    endfunction
