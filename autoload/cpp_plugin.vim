@@ -53,7 +53,6 @@ function! cpp_plugin#GetScopeSpecifier () abort
         if searchRes > 0 && searchRes + 1 == foundPos
             " remove all occurances of 'typename', 'class' and 'template'
             let typename = substitute(getline('.'), ' \|template\|typename\|class', '', 'g')
-            echomsg "after substitution: " . typename
 
             let res = res . substitute(typename, ',', ', ', 'g')
 
@@ -75,16 +74,25 @@ function! cpp_plugin#RemoveFuntionModifiers (str) abort
     let functionModifiers = [
                 \ 'virtual',
                 \ 'override',
-                \ 'const',
                 \ 'constexpr',
                 \ 'inline',
                 \ 'static',
                 \ 'explicit',
                 \ 'friend',
-                \ 'noexcept',
-                \ 'mutable',
                 \ 'final'
                 \ ]
+
+    let modifiedStr = a:str
+
+    for modifier in functionModifiers
+      let modifiedStr = substitute(modifiedStr, modifier, '', '')
+    endfor
+
+    let modifiedStr = substitute(modifiedStr, '\((.*)\s\+\)const\(.*\)', '\1\2', '') " remove 'const' if it's after brackets
+    let modifiedStr = substitute(modifiedStr, '\(.*(.*)\)\s\+\({\)', '\1 \2', '')
+
+    return modifiedStr
+
 endfunction
 
 function! cpp_plugin#CreateFunctionDefinition() abort
@@ -113,19 +121,23 @@ function! cpp_plugin#CreateFunctionDefinition() abort
       let templateTypename = cpp_plugin#GetTypename()
   endif
 
-  call 
+  let modifiedLine = cpp_plugin#RemoveFuntionModifiers(modifiedLine)
 
+  echomsg "Modified line:" . modifiedLine 
   " regex match a function that has a return type - it should start with >= 0
   " spaces and contain 2 words seperated by spaces
-  let funcWithReturnTypePattern = '^\s*\(\w\+\)\s\+\(\w\+\)\s*'
-  let matchPos = match(modifiedLine, funcWithReturnTypePattern) " Check if the function definition follows
+  let funcWithReturnTypePattern = '^\s*const?\s*[*&\w]+\s\+[\w+*/%&|=<>!^~?()\-]+\s*([\w &*,]*)\s*{\s*'
+
+  let matchFuncWithReturnType = match(modifiedLine, funcWithReturnTypePattern) " Check if the function definition follows
   " the pattern <word><spaces><word>
 
-  if matchPos != -1 " the function has a return type (isn't a constructor or a destructor)
-    " this line puts ClassName:: between the return type and the function name 
-    let modifiedLine = substitute(modifiedLine, funcWithReturnTypePattern, '\1 ' . toAdd . '\2', '')  " add ClassName::
+  if matchFuncWithReturnType != -1 " the function has a return type (isn't a constructor or a destructor)
+    let functionName= matchstr(modifiedLine, '\(\w\+\s*(.*)\)') 
+    echomsg "function name: " . functionName
+    let modifiedLine = substitute(modifiedLine, functionName, toAdd . functionName, '')  
 
   else 
+  echomsg "oooopss" 
     let modifiedLine = toAdd . modifiedLine " if the function doesn't have a return type, simply add
     " ClassName:: before the name of the function
   endif
