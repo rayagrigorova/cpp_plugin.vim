@@ -6,7 +6,7 @@
 function! cpp_plugin#GetTypename () abort
     let previousView = winsaveview()
     " search for a line that contains the pattern 'template ... <...>
-    let templateLine = search('.*template.*\<.*\>.*', 'b') 
+    let templateLine = search('.*template.*<.*>.*', 'b') 
 
     if templateLine < 0
         return ''
@@ -48,7 +48,8 @@ function! cpp_plugin#GetScopeSpecifier () abort
         let className = substitute(classLine, '.*class\s\+\(\w\+\).*', '\1', '' ) " get the class name
         let res = className
 
-        let searchRes = search('.*template.*\<.*\>.*', 'b')
+        let searchRes = search('.*template.*<.*>.*', 'b')
+        echomsg "search res:" . getline(searchRes)
 
         " if the search was succesful and the template <...> part is one line above the class declaration
         if searchRes > 0 && searchRes + 1 == classFoundPos
@@ -88,8 +89,6 @@ function! cpp_plugin#RemoveFuntionModifiers (str) abort
         let modifiedStr = substitute(modifiedStr, modifier, '', '')
     endfor
 
-    let modifiedStr = substitute(modifiedStr, '\((.*)\s\+\)const\(.*\)', '\1\2', '') " remove 'const' if it's after brackets
-    " let modifiedStr = substitute(modifiedStr, '\s*\(\w*(.*)\)\s*\(const?\s\+noexcept?\)\({\)\s*', '\1 \2 \3', '')
     let modifiedStr = substitute(modifiedStr, ' \{2,}', ' ', 'g') " replace groups of >= 2 spaces with a single one 
     let modifiedStr = substitute(modifiedStr, '^\s*', '', '') " remove leading whitespaces 
 
@@ -116,6 +115,7 @@ function! cpp_plugin#CreateFunctionDefinition() abort
     let modifiedLine = substitute(currentLine, ';', ' {', '')  " change the ';' symbol to '{'
 
     let toAdd = cpp_plugin#GetScopeSpecifier() 
+    echomsg "to add" . toAdd 
 
     " the function is a part of a template class
     if stridx(toAdd, '>') >= 0
