@@ -1,3 +1,0 @@
-
-<ginGithub\cpp_plugin\ftplugin\cpp\cpp_plugin.vim" 
-<gin\ftplugin\cpp\cpp_plugin.vim" [unix] 31L, 2294B
