@@ -49,7 +49,6 @@ function! cpp_plugin#GetScopeSpecifier () abort
         let res = className
 
         let searchRes = search('.*template.*<.*>.*', 'b')
-        echomsg "search res:" . getline(searchRes)
 
         " if the search was succesful and the template <...> part is one line above the class declaration
         if searchRes > 0 && searchRes + 1 == classFoundPos
@@ -58,16 +57,15 @@ function! cpp_plugin#GetScopeSpecifier () abort
             let res = res . substitute(typename, ',', ', ', 'g') " concat with result string
 
         endif
+
+    else 
+        call winrestview(previousView)
+        return ''
     endif
 
     call winrestview(previousView)
     return res . '::'
 
-else " not a part of a class (there are classes above the current line)
-    call winrestview(previousView)
-    return ''
-
-endif 
 endfunction
 
 
@@ -115,7 +113,6 @@ function! cpp_plugin#CreateFunctionDefinition() abort
     let modifiedLine = substitute(currentLine, ';', ' {', '')  " change the ';' symbol to '{'
 
     let toAdd = cpp_plugin#GetScopeSpecifier() 
-    echomsg "to add" . toAdd 
 
     " the function is a part of a template class
     if stridx(toAdd, '>') >= 0
@@ -124,20 +121,8 @@ function! cpp_plugin#CreateFunctionDefinition() abort
 
     let modifiedLine = cpp_plugin#RemoveFuntionModifiers(modifiedLine)
 
-    " regex match a function that has a return type - it should start with >= 0
-    " spaces and contain 2 words seperated by spaces
-    let funcNoReturnType = '\s*\~?\w\+(.*).*'
-
-    let matchFuncNoReturnType = match(modifiedLine, funcNoReturnType) 
-
-    if matchFuncNoReturnType == -1 " the function has a return type (isn't a constructor or a destructor)
-        let functionNamePos = match(modifiedLine, '\(\w\+\|operator.\{0,2}\)\s*(.*)') 
-        let modifiedLine = strpart(modifiedLine, 0, functionNamePos) . toAdd . strpart(modifiedLine, functionNamePos)
-
-    else 
-        let modifiedLine = toAdd . modifiedLine " if the function doesn't have a return type, simply add
-        " ClassName:: before the name of the function
-    endif
+    let functionNamePos = match(modifiedLine, '\(\~\?\w\+\|operator.\{1,2}\)\s*(.*)') 
+    let modifiedLine = strpart(modifiedLine, 0, functionNamePos) . toAdd . strpart(modifiedLine, functionNamePos)
 
     " determine where to put the function definition
 
