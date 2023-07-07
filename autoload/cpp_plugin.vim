@@ -289,18 +289,18 @@ endfunction
 " { // option 2
 "
 " }
-function! cpp_plugin#changebracketpos() abort
+function! cpp_plugin#ChangeBracketPos() abort
     " find the closest opening bracket and regex match the row 
     " if it contains '{', then the position is currently option 1
     " otherwise it is option 2
 
-    let savedview = winsaveview()
-    let savedcursor = getpos('.') " save the cursor position since it will be moved 
-    let currentline = getline('.')
+    let savedView = winsaveview()
+    let savedCursor = getpos('.') " save the cursor position since it will be moved 
+    let currentLine = getline('.')
 
-    let linecontainsbracket = currentline =~ '.*{.*' 
+    let lineContainsBracket = currentLine =~ '.*{.*' 
 
-    if !linecontainsbracket
+    if !lineContainsBracket
         " position the cursor on the row containing the respective opening bracket
         normal! ?{<cr>
         normal! j0f{xka {
@@ -313,6 +313,6 @@ function! cpp_plugin#changebracketpos() abort
 
     endif
 
-    call winrestview(savedview)
+    call winrestview(savedView)
 
 endfunction
