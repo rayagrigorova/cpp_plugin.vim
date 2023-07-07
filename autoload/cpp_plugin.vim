@@ -255,7 +255,7 @@ function! cpp_plugin#ExpandSnippet() abort
 endfunction
 
 function! cpp_plugin#AddBraceAndIndentation() abort
-    " let savedView = winsaveview()
+    let savedView = winsaveview()
     let savedCursor = getpos('.')
     let currentLineNumber = line('.') " get the number of the current line 
 
@@ -273,40 +273,39 @@ function! cpp_plugin#AddBraceAndIndentation() abort
     " move to the line below 
     silent! execute 'normal! j' 
 
-    call setline('.', repeat(' ', indentationLevel + userShiftWidth + 1)) " add necessary number of spaces
+    call setline('.', repeat(' ', indentationLevel + userShiftWidth )) " add necessary number of spaces
 
-    " move right
-    silent! execute 'normal! ' . (indentationLevel + userShiftWidth + 1) . 'l' 
-    " call winrestview(savedView)
+    call winrestview(savedView)
+    normal! j
 
 endfunction
 
 
-" void foo () { // Option 1
+" void foo () { // option 1
 "
 " }
 "
 " void bar ()
-" { // Option 2
+" { // option 2
 "
 " }
-function! cpp_plugin#ChangeBracketPos() abort
+function! cpp_plugin#changebracketpos() abort
     " find the closest opening bracket and regex match the row 
     " if it contains '{', then the position is currently option 1
     " otherwise it is option 2
 
-    let savedView = winsaveview()
-    let savedCursor = getpos('.') " save the cursor position since it will be moved 
-    let currentLine = getline('.')
+    let savedview = winsaveview()
+    let savedcursor = getpos('.') " save the cursor position since it will be moved 
+    let currentline = getline('.')
 
-    let lineContainsBracket = currentLine =~ '.*{.*' 
+    let linecontainsbracket = currentline =~ '.*{.*' 
 
-    if !lineContainsBracket
-        " Position the cursor on the row containing the respective opening bracket
-        normal! ?{<CR>
-        normal! j0f{xkA {
+    if !linecontainsbracket
+        " position the cursor on the row containing the respective opening bracket
+        normal! ?{<cr>
+        normal! j0f{xka {
 
-            " If the initial line contains an opening brace or the destination line contains an opening brace 
+            " if the initial line contains an opening brace or the destination line contains an opening brace 
     else
         " delete the { symbol
         normal! f{x
@@ -314,6 +313,6 @@ function! cpp_plugin#ChangeBracketPos() abort
 
     endif
 
-    call winrestview(savedView)
+    call winrestview(savedview)
 
 endfunction
