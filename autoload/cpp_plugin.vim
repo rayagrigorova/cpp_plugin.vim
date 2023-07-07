@@ -298,20 +298,35 @@ function! cpp_plugin#ChangeBracketPos() abort
     let savedCursor = getpos('.') " save the cursor position since it will be moved 
     let currentLine = getline('.')
 
-    let lineContainsBracket = currentLine =~ '.*{.*' 
+    let funcLine = search('.*(.*).*', 'cb') " search for the line that contains the function name 
+    echomsg "function line:" . getline(funcLine) 
 
-    if !lineContainsBracket
+    let lineContainsBracket = getline(funcLine) =~ '.*{.*' 
+
+    if !lineContainsBracket 
+        " Option 2: void foo ()
+        " {
+        " ...
+        " }
+
         " position the cursor on the row containing the respective opening bracket
-        normal! ?{<cr>
-        normal! j0f{xka {
+        execute "normal! /{\<CR>"
+        " echomsg "After normal /{<CR>:" . getline('.')
+        " delete the row containing the bracket
+        normal! dd
+        call cursor(funcLine, 1) " position the cursor on the function line on column 1
+        execute "silent! s/\\s\\{2,}/ /g" 
+        " echomsg "After cursor change:" . getline('.')
+        normal! f)A{ 
 
-            " if the initial line contains an opening brace or the destination line contains an opening brace 
-    else
+    else " Option 1: void foo () {
         " delete the { symbol
         normal! f{x
         call append(line('.'), "{")
 
     endif
+
+    normal! ggVG=
 
     call winrestview(savedView)
 
