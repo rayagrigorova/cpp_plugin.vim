@@ -85,16 +85,17 @@ To add a code snippet, enter a keyword, exit to normal mode and press |<Leader>e
 The cursor should be positioned on the trigger word for the expansion to work. 
 If the snippet doesn't exist, an error message 'Snippet not found.' will be displayed.
 
-List of trigger words:
-- forl (adds a for loop from 0 to n)
-- myStrlen
-- myStrcmp
-- myStrCat
-- myStrCpy
-- printArr
-- iterateArr
-- bubbleSort
-- insertionSort
+    List of trigger words:
+
+    - forl (adds a for loop from 0 to n)
+    - myStrlen
+    - myStrcmp
+    - myStrCat
+    - myStrCpy
+    - printArr
+    - iterateArr
+    - bubbleSort
+    - insertionSort
 
 ------------------------------------------------------------------------------
 Automatic addition of closing brackets and indentation ~

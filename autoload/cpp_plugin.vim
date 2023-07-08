@@ -171,11 +171,10 @@ function! cpp_plugin#CreateFunctionDefinition() abort
                 execute 'split ' . fileToEdit
             endif
 
-            silent! call appendbufline(bufnr(fileToEdit), '$', lines) " append to buffer 
+            silent! call appendbufline(fileToEdit, '$', lines) " append to buffer 
         endif
 
     elseif currentFile =~ hppFileRegex
-        let filename = expand('%:t')
         " The result is almost the same as with .cpp files, but the only
         " difference is that the row before the function should contain
         " 'template <typename T, typename S ....>
@@ -183,7 +182,7 @@ function! cpp_plugin#CreateFunctionDefinition() abort
         let endLine = line('$') " get the line number of the last line in the file 
 
         let lines = ['', templateTypename, modifiedLine, '', '}']
-        call writefile(lines, filename, 'a')
+        call writefile(lines, currentFile, 'a')
 
     else 
         throw 'Invalid file extension'
@@ -194,15 +193,14 @@ function! cpp_plugin#CreateFunctionDefinition() abort
 
 endfunction
 
-
+" Add declarations for all Big 6 functions
 " This function is intended to work when the cursor is positioned on the line
 " declaring the class
 function! cpp_plugin#DeclareBig6() abort
-    let savedView = winsaveview() " save the cursor position since it will be moved 
+    let savedView = winsaveview() 
 
     " a list of all functions to be added
     " T is used as a placeholder and will be replaced with the class name 
-
     let functionList = [
                 \ "void free();", 
                 \ "void copyFrom(const T& other);", 
@@ -215,21 +213,23 @@ function! cpp_plugin#DeclareBig6() abort
                 \ "T& operator=(T&& other) noexcept;" 
                 \ ]
 
-    let currentLine = getline('.') " get the current line
-    let startLineNumber = line('.') " save the number of the first line so that the code can be formatted later 
+    " let currentLine = getline('.') " get the current line
+    let classNameRegex = 'class\s\+\(\k\+\).*' " capture the class name 
+    let classLine = getline(search(classNameRegex, 'bc'))
+    let className = substitute(classLine, classNameRegex, '\1', '') " get the class name from the current line
+    echomsg "class name". className
 
-    let classNameRegex = 'class\s\+\(\w\+\).*' " capture the class name 
-    let className = substitute(currentLine, classNameRegex, '\1', '') " get the class name from the current line
-
-    let modifiedFunctionList = map(copy(functionList), {_, v -> substitute(v, 'T', className, 'g')}) 
+    let modifiedFunctionList = map(copy(functionList), {_, val -> substitute(val, 'T', className, 'g')}) 
     " The '_' variable is unused and is only added for consistency - map() expects a lambda function with 2 arguments 
     "		If {expr2} is a |Funcref| it is called with two arguments:
     "			1. The key or the index of the current item.
     "			2. the value of the current item.
 
-    " Go to the next opening brace and then go one line down 
-    normal! f{j
-    let lineNumber = line('.') " get the line number 
+    call search('.*{.*', 'c') " search for an opening bracket 
+
+    " go one line down 
+    normal! j
+    let lineNumber = line('.') " get the line number
 
     for i in range (0, 2) " add the first 3 functions 
         call append(lineNumber, modifiedFunctionList[i])
@@ -266,6 +266,7 @@ function! cpp_plugin#ExpandSnippet() abort
     normal! diW
 
     execute 'normal! i' . snippet  
+
 endfunction
 
 function! cpp_plugin#AddBraceAndIndentation() abort
@@ -281,9 +282,7 @@ function! cpp_plugin#AddBraceAndIndentation() abort
 
     " format the code
     execute 'normal! gg=G'
-
     call setpos('.', savedCursor) " set the cursor position back
-
     " move to the line below 
     execute 'normal! j' 
 
@@ -329,7 +328,7 @@ function! cpp_plugin#ChangeBracketPos() abort
 
         call cursor(funcLine, 1) " position the cursor on the function line on column 1
 
-        execute "silent! s/\\s\\{2,}/ /g" 
+        execute "silent! s/ \\{2,}/ /g" 
         normal! f)A{ 
 
     else " Option 1: void foo () {
