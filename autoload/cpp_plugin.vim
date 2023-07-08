@@ -213,8 +213,8 @@ function! cpp_plugin#DeclareBig6() abort
     "			1. The key or the index of the current item.
     "			2. the value of the current item.
 
-    " search for the next opening brace and then go one line down 
-    normal! /{<CR>j
+    " Go to the next opening brace and then go one line down 
+    normal! f{j
     let lineNumber = line('.') " get the line number 
 
     for i in range (0, 2) " add the first 3 functions 
@@ -233,8 +233,7 @@ function! cpp_plugin#DeclareBig6() abort
     endfor
 
     " format the code
-    execute startLineNumber . ',' . lineNumber . 'normal! gg=G'
-
+    normal! gg=G
     call winrestview(savedView)
 
 endfunction
