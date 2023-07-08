@@ -266,20 +266,19 @@ function! cpp_plugin#AddBraceAndIndentation() abort
     call append(line('.'), '') 
 
     " format the code
-    silent! execute 'normal! gg=G'
+    execute 'normal! gg=G'
 
     call setpos('.', savedCursor) " set the cursor position back
 
     " move to the line below 
-    silent! execute 'normal! j' 
+    execute 'normal! j' 
 
     call setline('.', repeat(' ', indentationLevel + userShiftWidth )) " add necessary number of spaces
 
     call winrestview(savedView)
-    normal! j
+    execute 'normal! j' 
 
 endfunction
-
 
 " void foo () { // option 1
 "
@@ -300,7 +299,7 @@ function! cpp_plugin#ChangeBracketPos() abort
 
     let funcLine = search('.*(.*).*', 'cb') " search for the line that contains the function name 
 
-    let lineContainsBracket = getline(funcLine) =~ '.*{.*' 
+    let lineContainsBracket = stridx(funcLine, '{') >= 0
 
     if !lineContainsBracket 
         " Option 2: void foo ()
