@@ -4,15 +4,16 @@
 " this function doesn't perform a check if a line of code is a part of a class
 " this is handled in the GetClassName() function 
 function! cpp_plugin#GetTypename () abort
-    let previousView = winsaveview()
+    " let previousView = winsaveview()
+
     " search for a line that contains the pattern 'template ... <...>
-    let templateLine = search('.*template.*<.*>.*', 'b') 
+    let templateLine = search('.*template.*<.*>.*', 'bn') 
 
     if templateLine < 0
         return ''
     endif
 
-    call winrestview(previousView)
+    " call winrestview(previousView)
     return getline(templateLine)
 
 endfunction
@@ -20,10 +21,9 @@ endfunction
 " a helper function to get the scope name specifier
 function! cpp_plugin#GetScopeSpecifier () abort
     let previousView = winsaveview()
-
     let currentLine = getline('.') " Get the current line 
 
-    if stridx(currentLine, 'friend') >= 0 " friend functions shouldn't have a scope specifier
+    if match(currentLine, '\<friend\>') >= 0 " friend functions shouldn't have a scope specifier
         return ''
     endif
 
@@ -31,12 +31,13 @@ function! cpp_plugin#GetScopeSpecifier () abort
 
     " search for the word 'class' backwards and get the number of the line where the word 'class' was found
     let classFoundPos = search("class", 'b')
-    let classLine = getline('.') " get the line itself
 
     if classFoundPos == 0 " no previous class definition found
         call winrestview(previousView)
         return ''
     endif
+
+    let classLine = getline('.') " get the line itself
 
     " search for the '{' symbol of the class declaration (search forward) and save the line number 
     let openingBracket = search('{', '') 
@@ -45,17 +46,16 @@ function! cpp_plugin#GetScopeSpecifier () abort
     normal! %
 
     if lineNumber >= openingBracket && lineNumber <= line('.') " if the current line is a part of a class declaration
-        let className = substitute(classLine, '.*class\s\+\(\w\+\).*', '\1', '' ) " get the class name
+        let className = substitute(classLine, '.*class\s\+\(\k\+\).*', '\1', '' ) " get the class name
         let res = className
 
         let searchRes = search('.*template.*<.*>.*', 'b')
 
-        " if the search was succesful and the template <...> part is one line above the class declaration
-        if searchRes > 0 && searchRes + 1 == classFoundPos
+        " if the search was succesful and the template <...> part is above the class declaration
+        if searchRes > 0 && searchRes <= classFoundPos
             " remove all occurances of 'typename', 'class' and 'template'
             let typename = substitute(getline('.'), ' \|template\|typename\|class', '', 'g')
             let res = res . substitute(typename, ',', ', ', 'g') " concat with result string
-
         endif
 
     else 
@@ -67,7 +67,6 @@ function! cpp_plugin#GetScopeSpecifier () abort
     return res . '::'
 
 endfunction
-
 
 function! cpp_plugin#RemoveFuntionModifiers (str) abort
     let functionModifiers = [
@@ -99,8 +98,8 @@ function! cpp_plugin#CreateFunctionDefinition() abort
     let currentLine = substitute(getline('.'), '^\s*', '', '') " get the current line and remove tabs
 
     " functions that are deleted, default or pure virtual shouldn't have a definition
-    if stridx(currentLine, 'delete') >= 0 || stridx(currentLine, 'default') >= 0
-                \ || currentLine =~ '.*=\s*0.*'
+    if match(currentLine, '\<delete\>') >= 0 || match(currentLine, '\<default\>') >= 0
+                \ || currentLine =~ '.*=\s*0\s*;\s*$'
         return
     endif
 
@@ -121,7 +120,7 @@ function! cpp_plugin#CreateFunctionDefinition() abort
 
     let modifiedLine = cpp_plugin#RemoveFuntionModifiers(modifiedLine)
 
-    let functionNamePos = match(modifiedLine, '\(\~\?\w\+\|operator.\{1,2}\)\s*(.*)') 
+    let functionNamePos = match(modifiedLine, '\(\~\?\k\+\|operator.\{1,2}\)\s*(.*)') 
     let modifiedLine = strpart(modifiedLine, 0, functionNamePos) . toAdd . strpart(modifiedLine, functionNamePos)
 
     " determine where to put the function definition
@@ -130,22 +129,22 @@ function! cpp_plugin#CreateFunctionDefinition() abort
     " if the current file is a cpp file, create a function definition 
     " at the end of the file 
     if currentFile =~ cppFileRegex
-        let filename = expand('%:t')
         let endLine = line('$') " get the line number of the last line in the file 
-
         let lines = ['', modifiedLine, '', '}']
-        call writefile(lines, filename, 'a')
+        call writefile(lines, currentFile, 'a')
 
         " if the current file is a header file 
     elseif currentFile =~ hFileRegex
         " find the respective .cpp file and add a function definition to it 
         let cppFile = substitute(currentFile, '.h', '.cpp', '')
-
         let lines = ['', modifiedLine, '', '}']
 
-        if !bufexists(cppFile)
-            let parentDir = expand('%:h:h') 
-            let fileToEdit = findfile(cppFile, parentDir)
+        if !bufloaded(cppFile)
+            let parentDir = expand('%:h') 
+
+            let fileToEdit = findfile(cppFile, parentDir . '\**')
+            echomsg "Parent dir: " . parentDir 
+            echomsg "Find file: " . fileToEdit 
 
             if fileToEdit == '' " the file doesn't exist
                 return 
@@ -156,6 +155,10 @@ function! cpp_plugin#CreateFunctionDefinition() abort
             execute 'split ' . fileToEdit 
 
         else 
+            if bufwinnr(cppFile) == -1 " If there are no open windows for the buffer
+                execute 'split ' . cppFile
+            endif
+
             silent! call appendbufline(bufnr(cppFile), '$', lines) " append to buffer 
         endif
 
