@@ -42,11 +42,13 @@ USAGE                                                 *cpp_plugin-usage*
 This plugin includes functionality that I often needed in the
 Introduction to Programming and Object Oriented Programming courses.
 
+
+------------------------------------------------------------------------------
                                               *<Leader>cad*
-Create a function definition ~ 
+Create a function definition ~
 
 To create a function definition, position the cursor on the line containing the 
-function declaration andd press `<Leader>cad`. Depending on the file extension,
+function declaration andd press |<Leader>cad|. Depending on the file extension,
 the mapping will:
 
 - Create a function definition at the end of the file (for .cpp and .hpp files)
@@ -55,7 +57,7 @@ the mapping will:
 opened in split (if not already opened), and the function definition will be added to its end. 
 If a .cpp file with the same name as the current file doesn't exist, nothing happens (for .h files)
 
-
+------------------------------------------------------------------------------
                                                  *:Big6*
 Create a Big 6 ~
 
@@ -72,13 +74,14 @@ The Rule of 6 states that if one of the above functions is implemented, the othe
 deleted or explicitly defaulted.
 
 After declaring a class, position the cursor on the line where the class is declared and enter the 
-command `:Big6`. Function declarations for all functions in the Big 6 will be added to the class body.
+command |:Big6|. Function declarations for all functions in the Big 6 will be added to the class body.
 
+------------------------------------------------------------------------------
                                          *<Leader>es*
 Snippets ~
 
-Trigger words can be expanded from normal mode using the mapping `<Leader>es`. 
-To add a code snippet, enter a keyword, exit to normal mode and press `<Leader>es`.
+Trigger words can be expanded from normal mode using the mapping |<Leader>es|. 
+To add a code snippet, enter a keyword, exit to normal mode and press |<Leader>es|.
 The cursor should be positioned on the trigger word for the expansion to work. 
 If the snippet doesn't exist, an error message 'Snippet not found.' will be displayed.
 
@@ -93,12 +96,12 @@ List of trigger words:
 - bubbleSort
 - insertionSort
 
-
+------------------------------------------------------------------------------
 Automatic addition of closing brackets and indentation ~
 
 Closing brackets and indentation are automatically added when <Enter> is pressed.
 
-
+------------------------------------------------------------------------------
                                                   *<Leader>bp*
 Change bracket position ~
 
@@ -116,6 +119,6 @@ to the function definition.
     }
 <
 
-You can toggle between the two options using the mapping `<Leader>bp`.
+You can toggle between the two options using the mapping |<Leader>bp|.
 
 ==============================================================================
