@@ -243,15 +243,15 @@ endfunction
 function! cpp_plugin#ExpandSnippet() abort 
     let snippet = get(g:cppsnippets, expand('<cword>'), 'Not found') " the default value returned is 'Not found'
 
+    if snippet == 'Not found'
+      echomsg "Snippet not found."
+      return 
+    endif
+
     " delete the word used to trigger the snippet expansion
     normal! diW
 
-    if snippet == 'Not found'
-        echomsg "Snippet not found."
-        return 
-    else
-        execute 'normal! i' . snippet  
-    endif
+    execute 'normal! i' . snippet  
 endfunction
 
 function! cpp_plugin#AddBraceAndIndentation() abort
