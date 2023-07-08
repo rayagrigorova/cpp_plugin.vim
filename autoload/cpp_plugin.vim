@@ -126,14 +126,14 @@ function! cpp_plugin#CreateFunctionDefinition() abort
 
     let modifiedLine = substitute(currentLine, ';', ' {', '')  " change the ';' symbol to '{'
 
-    let toAdd = cpp_plugin#GetScopeSpecifier() 
+    let toAdd = s:GetScopeSpecifier() 
 
     " the function is a part of a template class
     if stridx(toAdd, '>') >= 0
-        let templateTypename = cpp_plugin#GetTypename()
+        let templateTypename = s:GetTypename()
     endif
 
-    let modifiedLine = cpp_plugin#RemoveFuntionModifiers(modifiedLine)
+    let modifiedLine = s:RemoveFuntionModifiers(modifiedLine)
 
     let functionNamePos = match(modifiedLine, '\(\~\?\k\+\|operator.\{1,2}\)\s*(.*)') 
     let modifiedLine = strpart(modifiedLine, 0, functionNamePos) . toAdd . strpart(modifiedLine, functionNamePos)
@@ -256,7 +256,7 @@ endfunction
 " a function that expands the word under the cursor to the respective code
 " snippet
 function! cpp_plugin#ExpandSnippet() abort 
-    let snippet = get(g:cppsnippets, expand('<cword>'), 'Not found') " the default value returned is 'Not found'
+    let snippet = get(s:cppsnippets, expand('<cword>'), 'Not found') " the default value returned is 'Not found'
 
     if snippet == 'Not found'
       echomsg "Snippet not found."
@@ -303,18 +303,18 @@ endfunction
 " { // option 2
 "
 " }
+
 function! cpp_plugin#ChangeBracketPos() abort
     " find the closest opening bracket and regex match the row 
     " if it contains '{', then the position is currently option 1
     " otherwise it is option 2
-
     let savedView = winsaveview()
     let savedCursor = getpos('.') " save the cursor position since it will be moved 
     let currentLine = getline('.')
 
     let funcLine = search('.*(.*).*', 'cb') " search for the line that contains the function name 
 
-    let lineContainsBracket = stridx(funcLine, '{') >= 0
+    let lineContainsBracket = getline(funcLine) =~ '.*{.*' 
 
     if !lineContainsBracket 
         " Option 2: void foo ()
@@ -324,21 +324,23 @@ function! cpp_plugin#ChangeBracketPos() abort
 
         " position the cursor on the row containing the respective opening bracket
         execute "normal! /{\<CR>"
+
         " delete the row containing the bracket
         normal! dd
+
         call cursor(funcLine, 1) " position the cursor on the function line on column 1
+
         execute "silent! s/\\s\\{2,}/ /g" 
         normal! f)A{ 
 
     else " Option 1: void foo () {
+
         " delete the { symbol
         normal! f{x
         call append(line('.'), "{")
-
     endif
 
     normal! ggVG=
-
     call winrestview(savedView)
 
 endfunction
