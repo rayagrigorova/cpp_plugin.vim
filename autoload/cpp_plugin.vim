@@ -1,4 +1,3 @@
-
 " pairs of trigger words and code snippets
 let s:cppsnippets = {
   \ 'forl': "for (int i = 0; i < n; i++) {\n\n}",
@@ -12,28 +11,25 @@ let s:cppsnippets = {
   \ 'insertionSort': "void insert(int* arr, size_t size)\n{\nint el = arr[size - 1];\nint iter = size - 2;\n\nwhile (iter >= 0 && el < arr[iter]) {\narr[iter + 1] = arr[iter];\niter--;\n}\narr[iter + 1] = el;\n}\n\nvoid insertionSort(int* arr, size_t size)\n{\nfor (int i = 1; i < size; i++)\ninsert(arr, i + 1);\n}"
   \ }
 
-
 " a helper function used to extract the template <typename...> part of a class
 " declaration
 
 " this function doesn't perform a check if a line of code is a part of a class
 " this is handled in the GetClassName() function 
 function! s:GetTypename () abort
-    " let previousView = winsaveview()
-
     " search for a line that contains the pattern 'template ... <...>
-    let templateLine = search('.*template.*<.*>.*', 'bn') 
+    let templateLine = search('.*template.*<.*>.*', 'cbn') 
 
-    if templateLine < 0
+    if templateLine == 0
         return ''
     endif
 
-    " call winrestview(previousView)
     return getline(templateLine)
 
 endfunction
 
-" a helper function to get the scope name specifier
+" a helper function to get the scope specifier
+" a scope specifier is the ClassName<T, S, P>:: part when defining a function that is a part of a class
 function! s:GetScopeSpecifier () abort
     let previousView = winsaveview()
     let currentLine = getline('.') " Get the current line 
@@ -68,8 +64,10 @@ function! s:GetScopeSpecifier () abort
 
         " if the search was succesful and the template <...> part is above the class declaration
         if searchRes > 0 && searchRes <= classFoundPos
-            " remove all occurances of 'typename', 'class' and 'template'
+            " remove all occurances of 'typename', 'class' and 'template' and
+            " remove all whitespaces 
             let typename = substitute(getline('.'), ' \|template\|typename\|class', '', 'g')
+            " put a whitespace after each comma
             let res = res . substitute(typename, ',', ', ', 'g') " concat with result string
         endif
 
@@ -83,6 +81,7 @@ function! s:GetScopeSpecifier () abort
 
 endfunction
 
+" a helper function to remove modifiers which can be omitted
 function! s:RemoveFuntionModifiers (str) abort
     let functionModifiers = [
                 \ 'virtual',
@@ -118,7 +117,7 @@ function! cpp_plugin#CreateFunctionDefinition() abort
         return
     endif
 
-    let currentFile = expand('%:p') 
+    let currentFile = expand('%:p') " get the full path to the current file 
 
     let hFileRegex = '.*\.h$' " match .h files 
     let cppFileRegex = '.*\.cpp$' " match .cpp files 
@@ -140,7 +139,6 @@ function! cpp_plugin#CreateFunctionDefinition() abort
 
     " determine where to put the function definition
 
-    " let currentBufferNumber = 0 " The number of the buffer will be used to position the cursor at its end 
     " if the current file is a cpp file, create a function definition 
     " at the end of the file 
     if currentFile =~ cppFileRegex
@@ -151,22 +149,23 @@ function! cpp_plugin#CreateFunctionDefinition() abort
         " if the current file is a header file 
         " find the respective .cpp file and add a function definition to it 
     elseif currentFile =~ hFileRegex
-        let cppFile = fnamemodify(substitute(currentFile, '.h', '.cpp', ''), ':t')
+        " change the file extension and get the
+        " last component of the file name
+        let cppFile = fnamemodify(substitute(currentFile, '.h', '.cpp', ''), ':t') 
         let lines = ['', modifiedLine, '', '}']
 
-        let parentDir = expand('%:p:h:h') 
-        let fileToEdit = globpath(parentDir, '**\' . cppFile)
+        let parentDir = expand('%:p:h:h') " get the full path to the file and remove its last two components 
+        let fileToEdit = globpath(parentDir, '**\' . cppFile) "search from parentDir recursively
+
+
+        if fileToEdit == '' " the file doesn't exist
+            return 
+        endif 
 
         if !bufloaded(fileToEdit)
-
-            if fileToEdit == '' " the file doesn't exist
-                return 
-            endif 
-
-            " append to the respective cpp file if it exists 
+            " append to the respective cpp file 
             call writefile(lines, fileToEdit, 'a')
             execute 'split ' . fileToEdit 
-
         else 
             if bufwinnr(fileToEdit) == -1 " If there are no open windows for the buffer
                 execute 'split ' . fileToEdit
@@ -291,7 +290,7 @@ function! cpp_plugin#AddBraceAndIndentation() abort
     call setline('.', repeat(' ', indentationLevel + userShiftWidth )) " add necessary number of spaces
 
     call winrestview(savedView)
-    execute 'normal! j' 
+    execute 'normal! j$' 
 
 endfunction
 
