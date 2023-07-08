@@ -143,9 +143,6 @@ function! cpp_plugin#CreateFunctionDefinition() abort
         let fileToEdit = globpath(parentDir, '**\' . cppFile)
 
         if !bufloaded(fileToEdit)
-            echomsg "not loaded: " . cppFile
-            echomsg "Parent dir:" . parentDir 
-            echomsg "Find file:" . fileToEdit 
 
             if fileToEdit == '' " the file doesn't exist
                 return 
@@ -157,7 +154,6 @@ function! cpp_plugin#CreateFunctionDefinition() abort
 
         else 
             if bufwinnr(fileToEdit) == -1 " If there are no open windows for the buffer
-                echomsg "no windows open"
                 execute 'split ' . fileToEdit
             endif
 
@@ -304,7 +300,6 @@ function! cpp_plugin#ChangeBracketPos() abort
     let currentLine = getline('.')
 
     let funcLine = search('.*(.*).*', 'cb') " search for the line that contains the function name 
-    echomsg "function line:" . getline(funcLine) 
 
     let lineContainsBracket = getline(funcLine) =~ '.*{.*' 
 
@@ -316,12 +311,10 @@ function! cpp_plugin#ChangeBracketPos() abort
 
         " position the cursor on the row containing the respective opening bracket
         execute "normal! /{\<CR>"
-        " echomsg "After normal /{<CR>:" . getline('.')
         " delete the row containing the bracket
         normal! dd
         call cursor(funcLine, 1) " position the cursor on the function line on column 1
         execute "silent! s/\\s\\{2,}/ /g" 
-        " echomsg "After cursor change:" . getline('.')
         normal! f)A{ 
 
     else " Option 1: void foo () {
