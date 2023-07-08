@@ -275,7 +275,7 @@ function! cpp_plugin#AddBraceAndIndentation() abort
     let currentLineNumber = line('.') " get the number of the current line 
 
     let indentationLevel = indent(currentLineNumber) " get the indentation level of the current line (in spaces)
-    let userShiftWidth = &shiftwidth 
+    let userShiftWidth = shiftwidth()
 
     call append(line('.'), '}') " this line should appear last
     call append(line('.'), '') 
