@@ -103,7 +103,7 @@ function! cpp_plugin#CreateFunctionDefinition() abort
         return
     endif
 
-    let currentFile = expand('%:t') " get the last component of the filename only 
+    let currentFile = expand('%:p') 
 
     let hFileRegex = '.*\.h$' " match .h files 
     let cppFileRegex = '.*\.cpp$' " match .cpp files 
@@ -134,17 +134,18 @@ function! cpp_plugin#CreateFunctionDefinition() abort
         call writefile(lines, currentFile, 'a')
 
         " if the current file is a header file 
-    elseif currentFile =~ hFileRegex
         " find the respective .cpp file and add a function definition to it 
-        let cppFile = substitute(currentFile, '.h', '.cpp', '')
+    elseif currentFile =~ hFileRegex
+        let cppFile = fnamemodify(substitute(currentFile, '.h', '.cpp', ''), ':t')
         let lines = ['', modifiedLine, '', '}']
 
-        if !bufloaded(cppFile)
-            let parentDir = expand('%:h') 
+        let parentDir = expand('%:p:h:h') 
+        let fileToEdit = globpath(parentDir, '**\' . cppFile)
 
-            let fileToEdit = findfile(cppFile, parentDir . '\**')
-            echomsg "Parent dir: " . parentDir 
-            echomsg "Find file: " . fileToEdit 
+        if !bufloaded(fileToEdit)
+            echomsg "not loaded: " . cppFile
+            echomsg "Parent dir:" . parentDir 
+            echomsg "Find file:" . fileToEdit 
 
             if fileToEdit == '' " the file doesn't exist
                 return 
@@ -155,11 +156,12 @@ function! cpp_plugin#CreateFunctionDefinition() abort
             execute 'split ' . fileToEdit 
 
         else 
-            if bufwinnr(cppFile) == -1 " If there are no open windows for the buffer
-                execute 'split ' . cppFile
+            if bufwinnr(fileToEdit) == -1 " If there are no open windows for the buffer
+                echomsg "no windows open"
+                execute 'split ' . fileToEdit
             endif
 
-            silent! call appendbufline(bufnr(cppFile), '$', lines) " append to buffer 
+            silent! call appendbufline(bufnr(fileToEdit), '$', lines) " append to buffer 
         endif
 
     elseif currentFile =~ hppFileRegex
