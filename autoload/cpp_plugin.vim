@@ -142,7 +142,6 @@ function! cpp_plugin#CreateFunctionDefinition() abort
     " if the current file is a cpp file, create a function definition 
     " at the end of the file 
     if currentFile =~ cppFileRegex
-        let endLine = line('$') " get the line number of the last line in the file 
         let lines = ['', modifiedLine, '', '}']
         call writefile(lines, currentFile, 'a')
 
@@ -156,7 +155,6 @@ function! cpp_plugin#CreateFunctionDefinition() abort
 
         let parentDir = expand('%:p:h:h') " get the full path to the file and remove its last two components 
         let fileToEdit = globpath(parentDir, '**\' . cppFile) "search from parentDir recursively
-
 
         if fileToEdit == '' " the file doesn't exist
             return 
@@ -178,8 +176,6 @@ function! cpp_plugin#CreateFunctionDefinition() abort
         " The result is almost the same as with .cpp files, but the only
         " difference is that the row before the function should contain
         " 'template <typename T, typename S ....>
-
-        let endLine = line('$') " get the line number of the last line in the file 
 
         let lines = ['', templateTypename, modifiedLine, '', '}']
         call writefile(lines, currentFile, 'a')
@@ -217,7 +213,6 @@ function! cpp_plugin#DeclareBig6() abort
     let classNameRegex = 'class\s\+\(\k\+\).*' " capture the class name 
     let classLine = getline(search(classNameRegex, 'bc'))
     let className = substitute(classLine, classNameRegex, '\1', '') " get the class name from the current line
-    echomsg "class name". className
 
     let modifiedFunctionList = map(copy(functionList), {_, val -> substitute(val, 'T', className, 'g')}) 
     " The '_' variable is unused and is only added for consistency - map() expects a lambda function with 2 arguments 
@@ -307,7 +302,6 @@ function! cpp_plugin#ChangeBracketPos() abort
     " if it contains '{', then the position is currently option 1
     " otherwise it is option 2
     let savedView = winsaveview()
-    let savedCursor = getpos('.') " save the cursor position since it will be moved 
     let currentLine = getline('.')
 
     let funcLine = search('.*(.*).*', 'cb') " search for the line that contains the function name 
