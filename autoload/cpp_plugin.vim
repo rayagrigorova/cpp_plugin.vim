@@ -107,6 +107,16 @@ function! s:RemoveFuntionModifiers (str) abort
 
 endfunction
 
+function! cpp_plugin#InitUserInterface() abort
+    nnoremap <buffer> <Leader>cad :call cpp_plugin#CreateFunctionDefinition()<CR>
+
+    command! -buffer Big6 :call cpp_plugin#DeclareBig6()<CR>
+
+    nnoremap <buffer> <Leader>es :call cpp_plugin#ExpandSnippet()<CR>
+    inoremap <buffer> { {<C-O>:call cpp_plugin#AddBraceAndIndentation()<CR>
+    nnoremap <buffer> <Leader>bp :call cpp_plugin#ChangeBracketPos()<CR>
+endfunction
+
 function! cpp_plugin#CreateFunctionDefinition() abort
     let savedView = winsaveview()
     let currentLine = substitute(getline('.'), '^\s*', '', '') " get the current line and remove tabs
