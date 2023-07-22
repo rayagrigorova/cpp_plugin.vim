@@ -1,10 +1,10 @@
 
-# Usage
+## Usage
 
 This plugin includes functionality that I often needed in the
 Introduction to Programming and Object Oriented Programming courses.
 
-## Create a function definition
+### Create a function definition
 
 To create a function definition, position the cursor on the line containing the 
 function declaration andd press `<Leader>cad`. Depending on the file extension,
@@ -15,7 +15,7 @@ the mapping will:
 opened in split (if not already opened), and the function definition will be added to its end. 
 If a .cpp file with the same name as the current file doesn't exist, nothing happens (for .h files)
 
-## Create a Big 6
+### Create a Big 6
 
 The Big 6 includes the following functions:
 
@@ -32,14 +32,14 @@ deleted or explicitly defaulted.
 After declaring a class, position the cursor on the line where the class is declared and enter the 
 command `:Big6`. Function declarations for all functions in the Big 6 will be added to the class body.
                                          
-## Snippets
+### Snippets
 
 Trigger words can be expanded from normal mode using the mapping `<Leader>es`. 
 To add a code snippet, enter a keyword, exit to normal mode and press `<Leader>es`.
 The cursor should be positioned on the trigger word for the expansion to work. 
 If the snippet doesn't exist, an error message 'Snippet not found.' will be displayed.
 
-#### List of trigger words:
+##### List of trigger words:
 
 - forl (adds a for loop from 0 to n)
 - myStrlen
@@ -51,11 +51,11 @@ If the snippet doesn't exist, an error message 'Snippet not found.' will be disp
 - bubbleSort
 - insertionSort
 
-## Automatic addition of closing brackets and indentation 
+### Automatic addition of closing brackets and indentation 
 
 Closing brackets and indentation are automatically added when `<Enter>` is pressed.
                                                   
-## Change bracket position
+### Change bracket position
 
 The bracket position refers to the position of the opening bracket '{' relative 
 to the function definition. 
@@ -73,7 +73,7 @@ to the function definition.
 
 You can toggle between the two options using the mapping `<Leader>bp`.
 
-# Installation                                  
+## Installation                                  
 
 For the installation of this plugin, it is recommended
 to use one of the following plugin managers: 
