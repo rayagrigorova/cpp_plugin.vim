@@ -62,7 +62,7 @@ Closing brackets and indentation are automatically added when `<Enter>` is press
 The bracket position refers to the position of the opening bracket '{' relative 
 to the function definition. 
 
-```
+``` cpp
     void foo () { // Option 1
 
     }
