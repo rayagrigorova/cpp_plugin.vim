@@ -86,7 +86,7 @@ to use one of the following plugin managers:
 You can install the plugin yourself using Vim's |packages| functionality by
 cloning the project (or adding it as a submodule) under
 `~/.vim/pack/<any-name>/start/`. For example:
-```
+```bash
     mkdir -p ~/.vim/pack/cpp_plugin/start
     cd ~/.vim/pack/cpp_plugin/start
     git clone https://github.com/rayagrigorova/cpp_plugin.vim.git
@@ -97,6 +97,6 @@ cloning the project (or adding it as a submodule) under
 This should automatically load the plugin for you on Vim start. Alternatively,
 you can add it to `~/.vim/pack/<any-name>/opt/` instead and load it in your
 .vimrc manually with:
-```
+```vim
     packadd cpp_plugin
 ```
