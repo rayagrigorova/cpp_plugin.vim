@@ -4,7 +4,7 @@
 This plugin includes functionality that I often needed in the
 Introduction to Programming and Object Oriented Programming courses.
 
-![demo](https://github.com/rayagrigorova/cpp_plugin.vim/assets/72023155/9fa4660c-caae-4b01-8058-7fbdfd0f9a5f)
+https://github.com/rayagrigorova/cpp_plugin.vim/assets/72023155/b1f36826-fe14-4d25-b395-83e85b061044
 
 ### Create a function definition
 
