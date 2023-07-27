@@ -73,6 +73,7 @@ to the function definition.
     }
 ```
 
+
 You can toggle between the two options using the mapping `<Leader>bp`.
 
 ## Installation                                  
